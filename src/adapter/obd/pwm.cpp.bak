@@ -10,7 +10,6 @@
 #include <GpioDrv.h>
 #include <Timer.h>
 #include <PwmDriver.h>
-#include "obdprofile.h"
 #include "j1850.h"
 #include "pwm.h"
 
@@ -224,12 +223,6 @@ int PwmAdapter::onConnectEcu(bool sendReply)
     uint8_t testSeq[] = { 0x01, 0x00 };
 
     open();
-
-    if (OBDProfile::instance()->getProtocol() == PROT_J1850_VPW) {
-    	connected_ = true;
-    	return PROT_J1850_PWM;
-    }
-
     int reply = requestImpl(testSeq, sizeof(testSeq), sendReply);
 
     connected_ = (reply == REPLY_NONE);

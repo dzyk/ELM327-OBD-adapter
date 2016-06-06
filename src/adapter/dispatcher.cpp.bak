@@ -20,8 +20,8 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.07";
-static const char Interface  [] = "ELM327 v2.1";
+static const char Version    [] = "1.05";
+static const char Interface  [] = "ELM327 v1.4";
 static const char Copyright  [] = "Copyright (c) 2009-2016 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
 static const char Copyright3 [] = "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.";
@@ -67,17 +67,6 @@ static void OnSetValueInt(const string& cmd, int par)
 }
 
 /**
- * Reset the int property to 0
- * @param[in] cmd Command line
- * @param[in] par The number in dispatch table
- */
-static void OnResetValueInt(const string& cmd, int par)
-{
-    AdapterConfig::instance()->setIntProperty(par, 0);
-    AdptSendReply(OkMessage);
-}
-
-/**
  * Store the byte sequence property
  * @param[in] cmd Command line
  * @param[in] par The number in dispatch table
@@ -116,11 +105,6 @@ static void OnSetOK(const string& cmd, int par)
     AdptSendReply(OkMessage);
 }
 
-static void OnCanShowStatus(const string& cmd, int par)
-{
-	return;
-}
-
 /**
  * The adapter firmware string
  * @param[in] cmd Command line, ignored
@@ -148,7 +132,7 @@ static void OnWiringTest(const string& cmd, int par)
  * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table, ignored
  */
-static void OnGetSerialNum(const string& cmd, int par)
+static void OnGetSerial(const string& cmd, int par)
 {
     AdptReadSerialNum();
 }
@@ -174,6 +158,32 @@ static void OnBufferDump(const string& cmd, int par)
 }
 
 /**
+ * Set adapter default parameters
+ */
+static void SetDefault() 
+{
+    AdapterConfig* config = AdapterConfig::instance();
+    config->setBoolProperty(PAR_HEADER_SHOW, false);
+    config->setBoolProperty(PAR_LINEFEED, true);
+    config->setBoolProperty(PAR_ECHO, true);
+    config->setBoolProperty(PAR_SPACES, true);
+    config->setIntProperty(PAR_TIMEOUT, 0);
+    config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
+    AdptSendReply(OkMessage);
+}
+
+/**
+ * Reset to defaults, "ATD"
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnSetDefault(const string& cmd, int par) 
+{
+    SetDefault();
+    AdptSendReply(OkMessage);
+}
+
+/**
  * Get the current protocol description, "ATDP"
  * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table, ignored
@@ -193,24 +203,14 @@ static void OnProtocolDescribeNum(const string& cmd, int par)
     OBDProfile::instance()->getProtocolDescriptionNum(); 
 }
 
-static void OnCanFlowControl(const string& cmd, int par)
-{
-	return;
-}
-
 /**
- * The adapter interface string, "ATI"
+ * Close the protocol, set the disconnected status, "ATPC"
  * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table, ignored
  */
-static void OnSendReplyInterface(const string& cmd, int par)
+static void OnProtocolClose(const string& cmd, int par) 
 {
-    AdptSendReply(Interface);
-}
-
-static void OnSetIsoBaudRate(const string& cmd, int par)
-{
-	return;
+    OBDProfile::instance()->closeProtocol();
 }
 
 /**
@@ -218,35 +218,9 @@ static void OnSetIsoBaudRate(const string& cmd, int par)
  * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table, ignored
  */
-static void OnKwDisplay(const string& cmd, int par)
+static void OnKwDisplay(const string& cmd, int par) 
 {
     OBDProfile::instance()->kwDisplay();
-}
-
-static void OnJ1939Monitor(const string& cmd, int par)
-{
-	return;
-}
-
-/**
- * Set the receive address to XX
- * @param[in] cmd Command line, ignored
- * @param[in] par The number in dispatch table, ignored
- */
-static void OnSetRcvAddress(const string& cmd, int par)
-{
-	AdapterConfig::instance()->setBoolProperty(PAR_AUTO_RECEIVE, false);
-	OnSetValueInt(cmd, par);
-}
-
-/**
- * Close the protocol, set the disconnected status, "ATPC"
- * @param[in] cmd Command line, ignored
- * @param[in] par The number in dispatch table, ignored
- */
-static void OnProtocolClose(const string& cmd, int par)
-{
-    OBDProfile::instance()->closeProtocol();
 }
 
 /**
@@ -300,33 +274,13 @@ static void OnSetProtocol(const string& cmd, int par)
 }
 
 /**
- * Set adapter default parameters
- */
-static void SetDefault()
-{
-    AdapterConfig* config = AdapterConfig::instance();
-    config->setBoolProperty(PAR_HEADER_SHOW, false);
-    config->setBoolProperty(PAR_LINEFEED, true);
-    config->setBoolProperty(PAR_ECHO, true);
-    config->setBoolProperty(PAR_SPACES, true);
-    config->setBoolProperty(PAR_AUTO_RECEIVE, true);
-    config->setIntProperty(PAR_TIMEOUT, 0);
-    config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
-
-    ByteArray bytes;
-    AdapterConfig::instance()->setBytesProperty(PAR_HEADER_BYTES, &bytes);
-
-    AdptSendReply(OkMessage);
-}
-
-/**
- * Reset to defaults, "ATD"
+ * The adapter interface string, "ATI"
  * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table, ignored
  */
-static void OnSetDefault(const string& cmd, int par)
+static void OnSendReplyInterface(const string& cmd, int par)
 {
-    SetDefault();
+    AdptSendReply(Interface);
 }
 
 /**
@@ -353,94 +307,47 @@ struct DispatchType {
 static const DispatchType dispatchTbl[] = {
     { "#1",   PAR_CHIP_COPYRIGHT,    0, 0, OnSendReplyCopyright   },
     { "#3",   PAR_WIRING_TEST,       0, 0, OnWiringTest           },
-    { "#RSN", PAR_GET_SERIAL,        0, 0, OnGetSerialNum         },
+    { "#RSN", PAR_GET_SERIAL,        0, 0, OnGetSerial            },
     { "@1",   PAR_VERSION,           0, 0, OnSendReplyVersion     },
     { "AL",   PAR_ALLOW_LONG,        0, 0, OnSetValueTrue         },
-	{ "AR",   PAR_AUTO_RECEIVE,      0, 0, OnSetValueTrue         },
-	{ "AT0",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-	{ "AT1",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-	{ "AT2",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
     { "BD",   PAR_BUFFER_DUMP,       0, 0, OnBufferDump           },
-	{ "BI",   PAR_BYPASS_INIT,       0, 0, OnSetValueTrue         },
-	{ "BRD",  PAR_TRY_BRD,           2, 2, OnSetValueInt          },
-	{ "BRT",  PAR_SET_BRD,           2, 2, OnSetValueInt          },
     { "CAF0", PAR_CAN_CAF,           0, 0, OnSetValueFalse        },
     { "CAF1", PAR_CAN_CAF,           0, 0, OnSetValueTrue         },
-	{ "CEA",  PAR_CAN_EXT,           0, 0, OnResetValueInt        },
-	{ "CEA",  PAR_CAN_EXT,           2, 2, OnSetValueInt          },
     { "CF",   PAR_CAN_CF,            3, 3, OnSetValueInt          },
     { "CF",   PAR_CAN_CF,            8, 8, OnSetValueInt          },
-	{ "CFC0", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueFalse        },
-	{ "CFC1", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueTrue         },
     { "CM",   PAR_CAN_CM,            3, 3, OnSetValueInt          },
     { "CM",   PAR_CAN_CM,            8, 8, OnSetValueInt          },
     { "CP",   PAR_CAN_CP,            2, 2, OnSetValueInt          },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   0, 0, OnResetValueInt        },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   3, 3, OnSetValueInt          },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   8, 8, OnSetValueInt          },
-	{ "CS",   PAR_CAN_SHOW_STATUS,   0, 0, OnCanShowStatus        },
-	{ "CSM0", PAR_CAN_MONITORING,    0, 0, OnSetValueFalse        },
-	{ "CSM1", PAR_CAN_MONITORING,    0, 0, OnSetValueTrue         },
     { "CV",   PAR_CALIBRATE_VOLT,    4, 4, OnSetOK                },
     { "D",    PAR_SET_DEFAULT,       0, 0, OnSetDefault           },
     { "D0",   PAR_CAN_DLC,           0, 0, OnSetValueFalse        },
     { "D1",   PAR_CAN_DLC,           0, 0, OnSetValueTrue         },
-	{ "DM1",  PAR_J1939_DM1_MONITOR, 0, 0, OnSetOK                },
     { "DP",   PAR_DESCRIBE_PROTOCOL, 0, 0, OnProtocolDescribe     },
     { "DPN",  PAR_DESCRIBE_PROTCL_N, 0, 0, OnProtocolDescribeNum  },
     { "E0",   PAR_ECHO,              0, 0, OnSetValueFalse        },
     { "E1",   PAR_ECHO,              0, 0, OnSetValueTrue         },
-	{ "FCSD", PAR_CAN_FLOW_CTRL_DAT, 1, 5, OnSetBytes             },
-	{ "FCSM", PAR_CAN_FLOW_CONTROL,  1, 1, OnSetValueInt          },
-	{ "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3, 3, OnSetValueInt          },
-	{ "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8, 8, OnSetValueInt          },
-	{ "FE",   PAR_FORGET_EVENTS,     0, 0, OnSetOK                },
-	{ "FI",   PAR_FAST_INIT,         0, 0, OnSetOK                },
     { "H0",   PAR_HEADER_SHOW,       0, 0, OnSetValueFalse        },
     { "H1",   PAR_HEADER_SHOW,       0, 0, OnSetValueTrue         },
     { "I",    PAR_INFO,              0, 0, OnSendReplyInterface   },
-	{ "IB",   PAR_ISO_BAUDRATE,      2, 2, OnSetIsoBaudRate       },
-	{ "IFR0", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-	{ "IFR1", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-	{ "IFR2", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
     { "IIA",  PAR_ISO_INIT_ADDRESS,  2, 2, OnSetValueInt          },
-	{ "JE",   PAR_J1939_FMT,         0, 0, OnSetValueTrue         },
-	{ "JHF0", PAR_J1939_HEADER,      0, 0, OnSetValueFalse        },
-	{ "JHF1", PAR_J1939_HEADER,      0, 0, OnSetValueTrue         },
-	{ "JS",   PAR_J1939_FMT,         0, 0, OnSetValueFalse        },
-	{ "JTM1", PAR_J1939_MLTPR5,      0, 0, OnSetValueFalse        },
-	{ "JTM5", PAR_J1939_MLTPR5,      0, 0, OnSetValueTrue         },
     { "KW",   PAR_KW_DISPLAY,        0, 0, OnKwDisplay            },
     { "KW0",  PAR_KW_CHECK,          0, 0, OnSetValueFalse        },
     { "KW1",  PAR_KW_CHECK,          0, 0, OnSetValueTrue         },
     { "L0",   PAR_LINEFEED,          0, 0, OnSetValueFalse        },
     { "L1",   PAR_LINEFEED,          0, 0, OnSetValueTrue         },
-	{ "LP",   PAR_LOW_POWER_MODE,    0, 0, OnSetOK                },
     { "M0",   PAR_MEMORY,            0, 0, OnSetValueFalse        },
     { "M1",   PAR_MEMORY,            0, 0, OnSetValueTrue         },
-	{ "MP",   PAR_J1939_MONITOR,     4, 7, OnJ1939Monitor         },
     { "NL",   PAR_ALLOW_LONG,        0, 0, OnSetValueFalse        },
-	{ "PC",   PAR_PROTOCOL_CLOSE,    0, 0, OnProtocolClose        },
-	{ "R0",   PAR_RESPONSES,         0, 0, OnSetValueFalse        },
-	{ "R1",   PAR_RESPONSES,         0, 0, OnSetValueTrue         },
-	{ "RA",   PAR_RECEIVE_ADDRESS,   2, 2, OnSetValueInt          },
-	{ "RTR",  PAR_CAN_SEND_RTR,      0, 0, OnSetOK                },
+    { "PC",   PAR_PROTOCOL_CLOSE,    0, 0, OnProtocolClose        },
     { "RV",   PAR_READ_VOLT,         0, 0, OnReadVoltage          },
     { "S0",   PAR_SPACES,            0, 0, OnSetValueFalse        },
     { "S1",   PAR_SPACES,            0, 0, OnSetValueTrue         },
     { "SH",   PAR_HEADER_BYTES,      3, 3, OnSetBytes             },
     { "SH",   PAR_HEADER_BYTES,      6, 6, OnSetBytes             },
-	{ "SI",   PAR_SLOW_INIT,         0, 0, OnSetOK                },
     { "SP",   PAR_PROTOCOL,          1, 2, OnSetProtocol          },
-	{ "SR",   PAR_RECEIVE_FILTER,    2, 2, OnSetRcvAddress        },
-	{ "SS",   PAR_STD_SEARCH_MODE,   0, 0, OnSetValueTrue         },
     { "ST",   PAR_TIMEOUT,           2, 2, OnSetValueInt          },
     { "SW",   PAR_WAKEUP_VAL,        2, 2, OnSetValueInt          },
-	{ "TA",   PAR_TESTER_ADDRESS,    2, 2, OnSetValueInt          },
     { "TP",   PAR_TRY_PROTOCOL,      1, 1, OnSetProtocol          },
-	{ "TP",   PAR_TRY_PROTOCOL,      2, 2, OnSetProtocol          },
-    { "V0",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueFalse        },
-    { "V1",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueTrue         },
     { "WM",   PAR_WM_HEADER,         1, 6, OnSetBytes             },
     { "WS",   PAR_WARMSTART,         0, 0, OnReset                },
     { "Z",    PAR_RESET_CPU,         0, 0, OnReset                }
@@ -461,14 +368,13 @@ static bool DispatchATCmd(const string& cmdString, int numOfChar, int type)
 {
      // Ignore first two "AT" chars
     string atcmd = (type == 0) ? cmdString.substr(2) : cmdString.substr(2, numOfChar); 
-    string arg;
-    if (type == 1 && (cmdString.length() > (numOfChar + 2)))
-    	arg = cmdString.substr(numOfChar + 2);
 
     for (int i = 0; i < sizeof(dispatchTbl)/sizeof(dispatchTbl[0]); i++) {
         int cmdType = (dispatchTbl[i].minParNum > 0) ? 1 : 0;
         
         if ((cmdType == type) && (atcmd == dispatchTbl[i].name)) {
+            string arg = (type == 1) ? cmdString.substr(numOfChar + 2) : "";
+            
             // Argument length validation if we have argument
             if (type && !ValidateArgLength(dispatchTbl[i], arg)) {
                 continue;
@@ -492,10 +398,7 @@ static bool DispatchATCmd(const string& cmdString, int numOfChar, int type)
  */
 static bool ParseGenericATCmd(const string& cmdString)
 {
-    bool dispatched = DispatchATCmd(cmdString, 4, 0); // Do exact string match, like "AT#DP"
-    if (dispatched)
-        return true;
-    dispatched = DispatchATCmd(cmdString, 4, 1); // Four char sequence prefixes
+    bool dispatched = DispatchATCmd(cmdString, 4, 0); // Do exact string match, like "AT#DP" 
     if (dispatched)
         return true;
     dispatched = DispatchATCmd(cmdString, 3, 1); // Three char sequence prefixes

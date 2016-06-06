@@ -31,14 +31,10 @@ const int BYTES_PROPS_START = 1000;
 enum AT_Requests {
     // bool properties
     PAR_ALLOW_LONG = 0,
-	PAR_AUTO_RECEIVE,
     PAR_BUFFER_DUMP,
-	PAR_BYPASS_INIT,
     PAR_CALIBRATE_VOLT,
     PAR_CAN_CAF,
     PAR_CAN_DLC,
-	PAR_CAN_MONITORING,
-	PAR_STD_SEARCH_MODE,
     PAR_CHIP_COPYRIGHT,
     PAR_DESCRIBE_PROTCL_N,
     PAR_DESCRIBE_PROTOCOL,
@@ -46,9 +42,6 @@ enum AT_Requests {
     PAR_GET_SERIAL,
     PAR_HEADER_SHOW,
     PAR_INFO,
-	PAR_J1939_FMT,
-	PAR_J1939_HEADER,
-	PAR_J1939_MLTPR5,
     PAR_KW_CHECK,
     PAR_KW_DISPLAY,
     PAR_KWP_4BYTES,
@@ -57,7 +50,6 @@ enum AT_Requests {
     PAR_PROTOCOL_CLOSE,
     PAR_READ_VOLT,
     PAR_RESET_CPU,
-	PAR_RESPONSES,
     PAR_SECOND_K,
     PAR_SET_DEFAULT,
     PAR_PROTOCOL,
@@ -68,37 +60,15 @@ enum AT_Requests {
     PAR_WARMSTART,
     PAR_WIRING_TEST,
     PAR_USE_AUTO_SP,
-	PAR_ADAPTIVE_TIMING,
-	PAR_CAN_SHOW_STATUS,
-	PAR_J1939_DM1_MONITOR,
-	PAR_FORGET_EVENTS,
-	PAR_FAST_INIT,
-	PAR_ISO_BAUDRATE,
-	PAR_INFRAME_RESPONSE,
-	PAR_LOW_POWER_MODE,
-	PAR_CAN_SEND_RTR,
-	PAR_SLOW_INIT,
-	PAR_CAN_VAIDATE_DLC,
-	PAR_J1939_MONITOR,
     // int properties
     PAR_CAN_CF = INT_PROPS_START,
     PAR_CAN_CM,
     PAR_CAN_CP,
-	PAR_CAN_EXT,
-	PAR_CAN_SET_ADDRESS,
-	PAR_CAN_FLOW_CONTROL,
-	PAR_CAN_FLOW_CTRL_HDR,
     PAR_ISO_INIT_ADDRESS,
-	PAR_RECEIVE_ADDRESS,
-	PAR_RECEIVE_FILTER,
-	PAR_TESTER_ADDRESS,
-	PAR_TRY_BRD,
-	PAR_SET_BRD,
     PAR_TIMEOUT,
     PAR_WAKEUP_VAL,
     // bytes properties
     PAR_HEADER_BYTES = BYTES_PROPS_START,
-	PAR_CAN_FLOW_CTRL_DAT,
     PAR_WM_HEADER
 };
 
@@ -123,11 +93,13 @@ public:
     void     setBytesProperty(int parameter, const ByteArray* bytes);
     const    ByteArray* getBytesProperty(int parameter) const;
 private:
-    const static int INT_PROP_LEN   = (PAR_WAKEUP_VAL - INT_PROPS_START   + 1);
-    const static int BYTES_PROP_LEN = (PAR_WM_HEADER  - BYTES_PROPS_START + 1);
+    const static int BYTE_PROP_LEN  = 10;
+    const static int INT_PROP_LEN   = 10;
+    const static int BYTES_PROP_LEN = 10;
 
     AdapterConfig();
-    uint64_t   values_; // 64 max
+    uint64_t   values_;
+    uint8_t    byteProps_ [BYTE_PROP_LEN];
     uint32_t   intProps_  [INT_PROP_LEN];
     ByteArray  bytesProps_[BYTES_PROP_LEN];
 };

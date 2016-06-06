@@ -11,7 +11,6 @@
 #include <candriver.h>
 #include <led.h>
 #include "canmsgbuffer.h"
-#include "obdprofile.h"
 #include "isocan.h"
 #include "canhistory.h"
 
@@ -187,17 +186,6 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
     CanMsgBuffer msgBuffer(getID(), extended_, 8, 0x02, 0x01, 0x00);
 
     open();
-
-    switch (OBDProfile::instance()->getProtocol()) {
-    	case PROT_ISO15765_1150:
-    		connected_ = true;
-    		return PROT_ISO15765_1150;
-    	case PROT_ISO15765_2950:
-    		connected_ = true;
-    		return PROT_ISO15765_2950;
-
-    }
-
     if (driver_->send(&msgBuffer)) { 
         if (receiveFromEcu(sendReply)) {
             connected_ = true;
@@ -225,14 +213,14 @@ void IsoCanAdapter::wiringCheck()
     driver_->setBitBang(true);
 
     driver_->setBit(0);
-    Delay1us(100);
-     if (driver_->getBit() != 0) {
+    Delay1ms(1);
+    if (driver_->getBit() != 0) {
         AdptSendReply("CAN wiring failed [0->1]");
         failed = true;
     }        
 
     driver_->setBit(1);
-    Delay1us(100);
+    Delay1ms(1);
     if (driver_->getBit() != 1) {
         AdptSendReply("CAN wiring failed [1->0]");
         failed = true;

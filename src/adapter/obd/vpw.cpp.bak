@@ -10,7 +10,6 @@
 #include <GpioDrv.h>
 #include <Timer.h>
 #include <PwmDriver.h>
-#include "obdprofile.h"
 #include "j1850.h"
 #include "vpw.h"
 
@@ -187,12 +186,6 @@ int VpwAdapter::onConnectEcu(bool sendReply)
     uint8_t testSeq[] = { 0x01, 0x00 };
 
     open();
-
-    if (OBDProfile::instance()->getProtocol() == PROT_J1850_VPW) {
-    	connected_ = true;
-    	return PROT_J1850_VPW;
-    }
-
     int reply = requestImpl(testSeq, sizeof(testSeq), sendReply);
 
     connected_ = (reply == REPLY_NONE);
@@ -214,8 +207,7 @@ int VpwAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
     msg->addHeaderAndChecksum();
 
     // Calculate expected 2nd byte reply
-    bool autoReceive = config_->getBoolProperty(PAR_AUTO_RECEIVE);
-    uint8_t expct2ndByte = autoReceive ? msg->data()[1] + 1 : config_->getIntProperty(PAR_RECEIVE_FILTER);
+    uint8_t expct2ndByte = msg->data()[1] + 1;
     
     // Set the request operation timeout P2
     timer_->start(p2Timeout);
