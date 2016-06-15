@@ -302,6 +302,9 @@ void IsoCan11Adapter::processFlowFrame(const CanMsgBuffer* msg)
     CanMsgBuffer ctrlData(getID(), false, 8, 0x30, 0x0, 0x00);
     ctrlData.id |= (msg->id & 0x07);
     driver_->send(&ctrlData);
+    
+    // Message log
+    history_->add2Buffer(&ctrlData, true, 0);
 }
 
 void IsoCan11Adapter::getDescription()
@@ -379,6 +382,9 @@ void IsoCan29Adapter::processFlowFrame(const CanMsgBuffer* msg)
     CanMsgBuffer ctrlData(getID(), true, 8, 0x30, 0x0, 0x00);
     ctrlData.id |= (msg->id & 0xFF) << 8;
     driver_->send(&ctrlData);
+    
+    // Message log
+    history_->add2Buffer(&ctrlData, true, 0);
 }
 
 void IsoCan29Adapter::getDescription()

@@ -193,11 +193,6 @@ static void OnProtocolDescribeNum(const string& cmd, int par)
     OBDProfile::instance()->getProtocolDescriptionNum(); 
 }
 
-static void OnCanFlowControl(const string& cmd, int par)
-{
-	return;
-}
-
 /**
  * The adapter interface string, "ATI"
  * @param[in] cmd Command line, ignored
