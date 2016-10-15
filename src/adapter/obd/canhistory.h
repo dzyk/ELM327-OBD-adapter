@@ -31,8 +31,7 @@ class CanHistory {
 public:
 	CanHistory() : currMsgPos_(0), numOfEntries_(0) {}
 	void dumpCurrentBuffer();
-	void add2Buffer(const CanMsgBuffer* buff, bool dir, uint8_t mid)
-;
+	void add2Buffer(const CanMsgBuffer* buff, bool dir, uint8_t mid);
 private:
 	const static int HISTORY_LEN = 16;
 	int      currMsgPos_;

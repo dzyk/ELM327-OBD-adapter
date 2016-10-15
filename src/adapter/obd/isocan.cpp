@@ -157,7 +157,6 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
     return msgReceived;
 }
 
-
 int IsoCanAdapter::getP2MaxTimeout() const
 {
     int p2Timeout = config_->getIntProperty(PAR_TIMEOUT); 
@@ -226,7 +225,7 @@ void IsoCanAdapter::wiringCheck()
 
     driver_->setBit(0);
     Delay1us(100);
-     if (driver_->getBit() != 0) {
+    if (driver_->getBit() != 0) {
         AdptSendReply("CAN wiring failed [0->1]");
         failed = true;
     }        

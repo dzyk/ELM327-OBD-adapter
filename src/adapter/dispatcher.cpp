@@ -118,7 +118,6 @@ static void OnSetOK(const string& cmd, int par)
 
 static void OnCanShowStatus(const string& cmd, int par)
 {
-	return;
 }
 
 /**
@@ -205,7 +204,6 @@ static void OnSendReplyInterface(const string& cmd, int par)
 
 static void OnSetIsoBaudRate(const string& cmd, int par)
 {
-	return;
 }
 
 /**
@@ -220,7 +218,6 @@ static void OnKwDisplay(const string& cmd, int par)
 
 static void OnJ1939Monitor(const string& cmd, int par)
 {
-	return;
 }
 
 /**
@@ -230,8 +227,8 @@ static void OnJ1939Monitor(const string& cmd, int par)
  */
 static void OnSetRcvAddress(const string& cmd, int par)
 {
-	AdapterConfig::instance()->setBoolProperty(PAR_AUTO_RECEIVE, false);
-	OnSetValueInt(cmd, par);
+    AdapterConfig::instance()->setBoolProperty(PAR_AUTO_RECEIVE, false);
+    OnSetValueInt(cmd, par);
 }
 
 /**
@@ -351,89 +348,89 @@ static const DispatchType dispatchTbl[] = {
     { "#RSN", PAR_GET_SERIAL,        0, 0, OnGetSerialNum         },
     { "@1",   PAR_VERSION,           0, 0, OnSendReplyVersion     },
     { "AL",   PAR_ALLOW_LONG,        0, 0, OnSetValueTrue         },
-	{ "AR",   PAR_AUTO_RECEIVE,      0, 0, OnSetValueTrue         },
-	{ "AT0",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-	{ "AT1",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-	{ "AT2",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
+    { "AR",   PAR_AUTO_RECEIVE,      0, 0, OnSetValueTrue         },
+    { "AT0",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
+    { "AT1",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
+    { "AT2",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
     { "BD",   PAR_BUFFER_DUMP,       0, 0, OnBufferDump           },
-	{ "BI",   PAR_BYPASS_INIT,       0, 0, OnSetValueTrue         },
-	{ "BRD",  PAR_TRY_BRD,           2, 2, OnSetValueInt          },
-	{ "BRT",  PAR_SET_BRD,           2, 2, OnSetValueInt          },
+    { "BI",   PAR_BYPASS_INIT,       0, 0, OnSetValueTrue         },
+    { "BRD",  PAR_TRY_BRD,           2, 2, OnSetValueInt          },
+    { "BRT",  PAR_SET_BRD,           2, 2, OnSetValueInt          },
     { "CAF0", PAR_CAN_CAF,           0, 0, OnSetValueFalse        },
     { "CAF1", PAR_CAN_CAF,           0, 0, OnSetValueTrue         },
-	{ "CEA",  PAR_CAN_EXT,           0, 0, OnResetValueInt        },
-	{ "CEA",  PAR_CAN_EXT,           2, 2, OnSetValueInt          },
+    { "CEA",  PAR_CAN_EXT,           0, 0, OnResetValueInt        },
+    { "CEA",  PAR_CAN_EXT,           2, 2, OnSetValueInt          },
     { "CF",   PAR_CAN_CF,            3, 3, OnSetValueInt          },
     { "CF",   PAR_CAN_CF,            8, 8, OnSetValueInt          },
-	{ "CFC0", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueFalse        },
-	{ "CFC1", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueTrue         },
+    { "CFC0", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueFalse        },
+    { "CFC1", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueTrue         },
     { "CM",   PAR_CAN_CM,            3, 3, OnSetValueInt          },
     { "CM",   PAR_CAN_CM,            8, 8, OnSetValueInt          },
     { "CP",   PAR_CAN_CP,            2, 2, OnSetValueInt          },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   0, 0, OnResetValueInt        },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   3, 3, OnSetValueInt          },
-	{ "CRA",  PAR_CAN_SET_ADDRESS,   8, 8, OnSetValueInt          },
-	{ "CS",   PAR_CAN_SHOW_STATUS,   0, 0, OnCanShowStatus        },
-	{ "CSM0", PAR_CAN_MONITORING,    0, 0, OnSetValueFalse        },
-	{ "CSM1", PAR_CAN_MONITORING,    0, 0, OnSetValueTrue         },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   0, 0, OnResetValueInt        },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   3, 3, OnSetValueInt          },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   8, 8, OnSetValueInt          },
+    { "CS",   PAR_CAN_SHOW_STATUS,   0, 0, OnCanShowStatus        },
+    { "CSM0", PAR_CAN_MONITORING,    0, 0, OnSetValueFalse        },
+    { "CSM1", PAR_CAN_MONITORING,    0, 0, OnSetValueTrue         },
     { "CV",   PAR_CALIBRATE_VOLT,    4, 4, OnSetOK                },
     { "D",    PAR_SET_DEFAULT,       0, 0, OnSetDefault           },
     { "D0",   PAR_CAN_DLC,           0, 0, OnSetValueFalse        },
     { "D1",   PAR_CAN_DLC,           0, 0, OnSetValueTrue         },
-	{ "DM1",  PAR_J1939_DM1_MONITOR, 0, 0, OnSetOK                },
+    { "DM1",  PAR_J1939_DM1_MONITOR, 0, 0, OnSetOK                },
     { "DP",   PAR_DESCRIBE_PROTOCOL, 0, 0, OnProtocolDescribe     },
     { "DPN",  PAR_DESCRIBE_PROTCL_N, 0, 0, OnProtocolDescribeNum  },
     { "E0",   PAR_ECHO,              0, 0, OnSetValueFalse        },
     { "E1",   PAR_ECHO,              0, 0, OnSetValueTrue         },
-	{ "FCSD", PAR_CAN_FLOW_CTRL_DAT, 1, 5, OnSetBytes             },
-	{ "FCSM", PAR_CAN_FLOW_CONTROL,  1, 1, OnSetValueInt          },
-	{ "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3, 3, OnSetValueInt          },
-	{ "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8, 8, OnSetValueInt          },
-	{ "FE",   PAR_FORGET_EVENTS,     0, 0, OnSetOK                },
-	{ "FI",   PAR_FAST_INIT,         0, 0, OnSetOK                },
+    { "FCSD", PAR_CAN_FLOW_CTRL_DAT, 1, 5, OnSetBytes             },
+    { "FCSM", PAR_CAN_FLOW_CONTROL,  1, 1, OnSetValueInt          },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3, 3, OnSetValueInt          },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8, 8, OnSetValueInt          },
+    { "FE",   PAR_FORGET_EVENTS,     0, 0, OnSetOK                },
+    { "FI",   PAR_FAST_INIT,         0, 0, OnSetOK                },
     { "H0",   PAR_HEADER_SHOW,       0, 0, OnSetValueFalse        },
     { "H1",   PAR_HEADER_SHOW,       0, 0, OnSetValueTrue         },
     { "I",    PAR_INFO,              0, 0, OnSendReplyInterface   },
-	{ "IB",   PAR_ISO_BAUDRATE,      2, 2, OnSetIsoBaudRate       },
-	{ "IFR0", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-	{ "IFR1", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-	{ "IFR2", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
+    { "IB",   PAR_ISO_BAUDRATE,      2, 2, OnSetIsoBaudRate       },
+    { "IFR0", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
+    { "IFR1", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
+    { "IFR2", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
     { "IIA",  PAR_ISO_INIT_ADDRESS,  2, 2, OnSetValueInt          },
-	{ "JE",   PAR_J1939_FMT,         0, 0, OnSetValueTrue         },
-	{ "JHF0", PAR_J1939_HEADER,      0, 0, OnSetValueFalse        },
-	{ "JHF1", PAR_J1939_HEADER,      0, 0, OnSetValueTrue         },
-	{ "JS",   PAR_J1939_FMT,         0, 0, OnSetValueFalse        },
-	{ "JTM1", PAR_J1939_MLTPR5,      0, 0, OnSetValueFalse        },
-	{ "JTM5", PAR_J1939_MLTPR5,      0, 0, OnSetValueTrue         },
+    { "JE",   PAR_J1939_FMT,         0, 0, OnSetValueTrue         },
+    { "JHF0", PAR_J1939_HEADER,      0, 0, OnSetValueFalse        },
+    { "JHF1", PAR_J1939_HEADER,      0, 0, OnSetValueTrue         },
+    { "JS",   PAR_J1939_FMT,         0, 0, OnSetValueFalse        },
+    { "JTM1", PAR_J1939_MLTPR5,      0, 0, OnSetValueFalse        },
+    { "JTM5", PAR_J1939_MLTPR5,      0, 0, OnSetValueTrue         },
     { "KW",   PAR_KW_DISPLAY,        0, 0, OnKwDisplay            },
     { "KW0",  PAR_KW_CHECK,          0, 0, OnSetValueFalse        },
     { "KW1",  PAR_KW_CHECK,          0, 0, OnSetValueTrue         },
     { "L0",   PAR_LINEFEED,          0, 0, OnSetValueFalse        },
     { "L1",   PAR_LINEFEED,          0, 0, OnSetValueTrue         },
-	{ "LP",   PAR_LOW_POWER_MODE,    0, 0, OnSetOK                },
+    { "LP",   PAR_LOW_POWER_MODE,    0, 0, OnSetOK                },
     { "M0",   PAR_MEMORY,            0, 0, OnSetValueFalse        },
     { "M1",   PAR_MEMORY,            0, 0, OnSetValueTrue         },
-	{ "MP",   PAR_J1939_MONITOR,     4, 7, OnJ1939Monitor         },
+    { "MP",   PAR_J1939_MONITOR,     4, 7, OnJ1939Monitor         },
     { "NL",   PAR_ALLOW_LONG,        0, 0, OnSetValueFalse        },
-	{ "PC",   PAR_PROTOCOL_CLOSE,    0, 0, OnProtocolClose        },
-	{ "R0",   PAR_RESPONSES,         0, 0, OnSetValueFalse        },
-	{ "R1",   PAR_RESPONSES,         0, 0, OnSetValueTrue         },
-	{ "RA",   PAR_RECEIVE_ADDRESS,   2, 2, OnSetValueInt          },
-	{ "RTR",  PAR_CAN_SEND_RTR,      0, 0, OnSetOK                },
+    { "PC",   PAR_PROTOCOL_CLOSE,    0, 0, OnProtocolClose        },
+    { "R0",   PAR_RESPONSES,         0, 0, OnSetValueFalse        },
+    { "R1",   PAR_RESPONSES,         0, 0, OnSetValueTrue         },
+    { "RA",   PAR_RECEIVE_ADDRESS,   2, 2, OnSetValueInt          },
+    { "RTR",  PAR_CAN_SEND_RTR,      0, 0, OnSetOK                },
     { "RV",   PAR_READ_VOLT,         0, 0, OnReadVoltage          },
     { "S0",   PAR_SPACES,            0, 0, OnSetValueFalse        },
     { "S1",   PAR_SPACES,            0, 0, OnSetValueTrue         },
     { "SH",   PAR_HEADER_BYTES,      3, 3, OnSetBytes             },
     { "SH",   PAR_HEADER_BYTES,      6, 6, OnSetBytes             },
-	{ "SI",   PAR_SLOW_INIT,         0, 0, OnSetOK                },
+    { "SI",   PAR_SLOW_INIT,         0, 0, OnSetOK                },
     { "SP",   PAR_PROTOCOL,          1, 2, OnSetProtocol          },
-	{ "SR",   PAR_RECEIVE_FILTER,    2, 2, OnSetRcvAddress        },
-	{ "SS",   PAR_STD_SEARCH_MODE,   0, 0, OnSetValueTrue         },
+    { "SR",   PAR_RECEIVE_FILTER,    2, 2, OnSetRcvAddress        },
+    { "SS",   PAR_STD_SEARCH_MODE,   0, 0, OnSetValueTrue         },
     { "ST",   PAR_TIMEOUT,           2, 2, OnSetValueInt          },
     { "SW",   PAR_WAKEUP_VAL,        2, 2, OnSetValueInt          },
-	{ "TA",   PAR_TESTER_ADDRESS,    2, 2, OnSetValueInt          },
+    { "TA",   PAR_TESTER_ADDRESS,    2, 2, OnSetValueInt          },
     { "TP",   PAR_TRY_PROTOCOL,      1, 1, OnSetProtocol          },
-	{ "TP",   PAR_TRY_PROTOCOL,      2, 2, OnSetProtocol          },
+    { "TP",   PAR_TRY_PROTOCOL,      2, 2, OnSetProtocol          },
     { "V0",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueFalse        },
     { "V1",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueTrue         },
     { "WM",   PAR_WM_HEADER,         1, 6, OnSetBytes             },
@@ -458,7 +455,7 @@ static bool DispatchATCmd(const string& cmdString, int numOfChar, int type)
     string atcmd = (type == 0) ? cmdString.substr(2) : cmdString.substr(2, numOfChar); 
     string arg;
     if (type == 1 && (cmdString.length() > (numOfChar + 2)))
-    	arg = cmdString.substr(numOfChar + 2);
+        arg = cmdString.substr(numOfChar + 2);
 
     for (int i = 0; i < sizeof(dispatchTbl)/sizeof(dispatchTbl[0]); i++) {
         int cmdType = (dispatchTbl[i].minParNum > 0) ? 1 : 0;
