@@ -746,6 +746,7 @@ void IsoSerialAdapter::configureProperties()
     
     // WM
     const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
+    customWkpMsg_[0] = 0;
     if (bytes->length) {
         customWkpMsg_[0] = bytes->length;
         memcpy(customWkpMsg_ + 1, bytes->data, bytes->length);

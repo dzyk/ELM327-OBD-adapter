@@ -315,16 +315,14 @@ static void OnSetProtocol(const string& cmd, int par)
 static void SetDefault()
 {
     AdapterConfig* config = AdapterConfig::instance();
+    OBDProfile::instance()->setProtocol(PROT_AUTO, true);
+    config->clear();
     config->setBoolProperty(PAR_HEADER_SHOW, false);
     config->setBoolProperty(PAR_LINEFEED, true);
     config->setBoolProperty(PAR_ECHO, true);
     config->setBoolProperty(PAR_SPACES, true);
     config->setBoolProperty(PAR_AUTO_RECEIVE, true);
-    config->setIntProperty(PAR_TIMEOUT, 0);
     config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
-
-    ByteArray bytes;
-    AdapterConfig::instance()->setBytesProperty(PAR_HEADER_BYTES, &bytes);
 }
 
 /**
@@ -345,6 +343,7 @@ static void OnSetDefault(const string& cmd, int par)
  */
 static void OnReset(const string& cmd, int par) 
 {
+    OBDProfile::instance()->closeProtocol();
     SetDefault();
     AdptSendReply(Interface);
 }
