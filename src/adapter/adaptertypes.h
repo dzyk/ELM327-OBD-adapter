@@ -25,12 +25,13 @@ const int USER_BUF_LEN    = RX_CMD_LEN; // The previous cmd
 //
 // Command dispatch values
 //
+const int BYTE_PROPS_START  = 0;
 const int INT_PROPS_START   = 100;
 const int BYTES_PROPS_START = 1000;
 
 enum AT_Requests {
     // bool properties
-    PAR_ALLOW_LONG = 0,
+    PAR_ALLOW_LONG = BYTE_PROPS_START,
 	PAR_AUTO_RECEIVE,
     PAR_BUFFER_DUMP,
 	PAR_BYPASS_INIT,
@@ -80,6 +81,7 @@ enum AT_Requests {
 	PAR_SLOW_INIT,
 	PAR_CAN_VAIDATE_DLC,
 	PAR_J1939_MONITOR,
+    BYTE_PROPS_END,
     // int properties
     PAR_CAN_CF = INT_PROPS_START,
     PAR_CAN_CM,
@@ -96,10 +98,12 @@ enum AT_Requests {
 	PAR_SET_BRD,
     PAR_TIMEOUT,
     PAR_WAKEUP_VAL,
+    INT_PROPS_END,
     // bytes properties
     PAR_HEADER_BYTES = BYTES_PROPS_START,
 	PAR_CAN_FLOW_CTRL_DAT,
-    PAR_WM_HEADER
+    PAR_WM_HEADER,
+    BYTES_PROPS_END
 };
 
 struct ByteArray {
@@ -122,9 +126,10 @@ public:
     uint32_t getIntProperty(int parameter) const;
     void     setBytesProperty(int parameter, const ByteArray* bytes);
     const    ByteArray* getBytesProperty(int parameter) const;
+    void clear();
 private:
-    const static int INT_PROP_LEN   = (PAR_WAKEUP_VAL - INT_PROPS_START   + 1);
-    const static int BYTES_PROP_LEN = (PAR_WM_HEADER  - BYTES_PROPS_START + 1);
+    const static int INT_PROP_LEN   = (INT_PROPS_END - INT_PROPS_START);
+    const static int BYTES_PROP_LEN = (BYTES_PROPS_END - BYTES_PROPS_START);
 
     AdapterConfig();
     uint64_t   values_; // 64 max
@@ -158,8 +163,7 @@ void AdptPowerModeConfigure();
 void Delay1ms(uint32_t value);
 void Delay1us(uint32_t value);
 void KWordsToString(const uint8_t* kw, util::string& str);
-void CanIDToString(uint32_t num, util::string& str, bool extended)
-;
+void CanIDToString(uint32_t num, util::string& str, bool extended);
 
 uint32_t to_bytes(const util::string& str, uint8_t* bytes);
 void to_ascii(const uint8_t* bytes, uint32_t length, util::string& str);

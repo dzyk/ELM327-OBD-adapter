@@ -30,7 +30,7 @@ enum ReplyTypes {
 // Protocols
 //
 enum ProtocolTypes {
-   PROT_AUTO,
+   PROT_AUTO = 0,
    PROT_J1850_PWM,
    PROT_J1850_VPW,
    PROT_ISO9141,
@@ -45,7 +45,7 @@ enum ProtocolTypes {
 // Adapters
 //
 enum AdapterTypes {
-   ADPTR_AUTO,
+   ADPTR_AUTO = 1,
    ADPTR_PWM,
    ADPTR_VPW,
    ADPTR_ISO,
@@ -70,12 +70,15 @@ public:
     virtual int getProtocol() const = 0;
     virtual void kwDisplay() {}
     bool isConnected() const { return connected_; }
+    void setStatus(int sts) { sts_ = sts; }
+    int getStatus() const { return sts_; }
 protected:
     static void insertToHistory(const Ecumsg* msg);
     static void appendToHistory(const Ecumsg* msg);
     ProtocolAdapter();
     bool           connected_;
     AdapterConfig* config_;
+    int            sts_;
 private:
     const static int HISTORY_LEN = 256;
     const static int ITEM_LEN    = 16;

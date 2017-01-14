@@ -20,9 +20,9 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.07";
+static const char Version    [] = "1.08";
 static const char Interface  [] = "ELM327 v2.1";
-static const char Copyright  [] = "Copyright (c) 2009-2016 ObdDiag.Net";
+static const char Copyright  [] = "Copyright (c) 2009-2017 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
 static const char Copyright3 [] = "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.";
 
@@ -78,11 +78,11 @@ static void OnResetValueInt(const string& cmd, int par)
 }
 
 /**
- * Store the byte sequence property
+ * Store the CAN 11bit header
  * @param[in] cmd Command line
  * @param[in] par The number in dispatch table
  */
-static void OnSetBytes(const string& cmd, int par)
+static void OnSetCanHeader(const string& cmd, int par)
 {
     string cmdData = cmd;
     bool sts = false;
@@ -91,10 +91,28 @@ static void OnSetBytes(const string& cmd, int par)
     if (cmdData.length() == 3) {
         cmdData = "0" + cmdData; //1.5 bytes
         sts = to_bytes(cmdData, bytes.data);
+        if (sts) {
+            bytes.length = cmdData.length() / 2;
+            AdapterConfig::instance()->setBytesProperty(par, &bytes);
+            AdptSendReply(OkMessage);
+        }
     }
     else {
-        sts = to_bytes(cmdData, bytes.data);
+        AdptSendReply(ErrMessage);
     }
+}
+
+/**
+ * Store the byte sequence property
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table
+ */
+static void OnSetBytes(const string& cmd, int par)
+{
+    string cmdData = cmd;
+    ByteArray bytes;
+    
+    bool sts = to_bytes(cmdData, bytes.data);
     
     if (sts) {
         bytes.length = cmdData.length() / 2;
@@ -307,8 +325,6 @@ static void SetDefault()
 
     ByteArray bytes;
     AdapterConfig::instance()->setBytesProperty(PAR_HEADER_BYTES, &bytes);
-
-    AdptSendReply(OkMessage);
 }
 
 /**
@@ -319,6 +335,7 @@ static void SetDefault()
 static void OnSetDefault(const string& cmd, int par)
 {
     SetDefault();
+    AdptSendReply(OkMessage);
 }
 
 /**
@@ -343,99 +360,99 @@ struct DispatchType {
 };
 
 static const DispatchType dispatchTbl[] = {
-    { "#1",   PAR_CHIP_COPYRIGHT,    0, 0, OnSendReplyCopyright   },
-    { "#3",   PAR_WIRING_TEST,       0, 0, OnWiringTest           },
-    { "#RSN", PAR_GET_SERIAL,        0, 0, OnGetSerialNum         },
-    { "@1",   PAR_VERSION,           0, 0, OnSendReplyVersion     },
-    { "AL",   PAR_ALLOW_LONG,        0, 0, OnSetValueTrue         },
-    { "AR",   PAR_AUTO_RECEIVE,      0, 0, OnSetValueTrue         },
-    { "AT0",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-    { "AT1",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-    { "AT2",  PAR_ADAPTIVE_TIMING,   0, 0, OnSetOK                },
-    { "BD",   PAR_BUFFER_DUMP,       0, 0, OnBufferDump           },
-    { "BI",   PAR_BYPASS_INIT,       0, 0, OnSetValueTrue         },
-    { "BRD",  PAR_TRY_BRD,           2, 2, OnSetValueInt          },
-    { "BRT",  PAR_SET_BRD,           2, 2, OnSetValueInt          },
-    { "CAF0", PAR_CAN_CAF,           0, 0, OnSetValueFalse        },
-    { "CAF1", PAR_CAN_CAF,           0, 0, OnSetValueTrue         },
-    { "CEA",  PAR_CAN_EXT,           0, 0, OnResetValueInt        },
-    { "CEA",  PAR_CAN_EXT,           2, 2, OnSetValueInt          },
-    { "CF",   PAR_CAN_CF,            3, 3, OnSetValueInt          },
-    { "CF",   PAR_CAN_CF,            8, 8, OnSetValueInt          },
-    { "CFC0", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueFalse        },
-    { "CFC1", PAR_CAN_FLOW_CONTROL,  0, 0, OnSetValueTrue         },
-    { "CM",   PAR_CAN_CM,            3, 3, OnSetValueInt          },
-    { "CM",   PAR_CAN_CM,            8, 8, OnSetValueInt          },
-    { "CP",   PAR_CAN_CP,            2, 2, OnSetValueInt          },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   0, 0, OnResetValueInt        },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   3, 3, OnSetValueInt          },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   8, 8, OnSetValueInt          },
-    { "CS",   PAR_CAN_SHOW_STATUS,   0, 0, OnCanShowStatus        },
-    { "CSM0", PAR_CAN_MONITORING,    0, 0, OnSetValueFalse        },
-    { "CSM1", PAR_CAN_MONITORING,    0, 0, OnSetValueTrue         },
-    { "CV",   PAR_CALIBRATE_VOLT,    4, 4, OnSetOK                },
-    { "D",    PAR_SET_DEFAULT,       0, 0, OnSetDefault           },
-    { "D0",   PAR_CAN_DLC,           0, 0, OnSetValueFalse        },
-    { "D1",   PAR_CAN_DLC,           0, 0, OnSetValueTrue         },
-    { "DM1",  PAR_J1939_DM1_MONITOR, 0, 0, OnSetOK                },
-    { "DP",   PAR_DESCRIBE_PROTOCOL, 0, 0, OnProtocolDescribe     },
-    { "DPN",  PAR_DESCRIBE_PROTCL_N, 0, 0, OnProtocolDescribeNum  },
-    { "E0",   PAR_ECHO,              0, 0, OnSetValueFalse        },
-    { "E1",   PAR_ECHO,              0, 0, OnSetValueTrue         },
-    { "FCSD", PAR_CAN_FLOW_CTRL_DAT, 1, 5, OnSetBytes             },
-    { "FCSM", PAR_CAN_FLOW_CONTROL,  1, 1, OnSetValueInt          },
-    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3, 3, OnSetValueInt          },
-    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8, 8, OnSetValueInt          },
-    { "FE",   PAR_FORGET_EVENTS,     0, 0, OnSetOK                },
-    { "FI",   PAR_FAST_INIT,         0, 0, OnSetOK                },
-    { "H0",   PAR_HEADER_SHOW,       0, 0, OnSetValueFalse        },
-    { "H1",   PAR_HEADER_SHOW,       0, 0, OnSetValueTrue         },
-    { "I",    PAR_INFO,              0, 0, OnSendReplyInterface   },
-    { "IB",   PAR_ISO_BAUDRATE,      2, 2, OnSetIsoBaudRate       },
-    { "IFR0", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-    { "IFR1", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-    { "IFR2", PAR_INFRAME_RESPONSE,  0, 0, OnSetOK                },
-    { "IIA",  PAR_ISO_INIT_ADDRESS,  2, 2, OnSetValueInt          },
-    { "JE",   PAR_J1939_FMT,         0, 0, OnSetValueTrue         },
-    { "JHF0", PAR_J1939_HEADER,      0, 0, OnSetValueFalse        },
-    { "JHF1", PAR_J1939_HEADER,      0, 0, OnSetValueTrue         },
-    { "JS",   PAR_J1939_FMT,         0, 0, OnSetValueFalse        },
-    { "JTM1", PAR_J1939_MLTPR5,      0, 0, OnSetValueFalse        },
-    { "JTM5", PAR_J1939_MLTPR5,      0, 0, OnSetValueTrue         },
-    { "KW",   PAR_KW_DISPLAY,        0, 0, OnKwDisplay            },
-    { "KW0",  PAR_KW_CHECK,          0, 0, OnSetValueFalse        },
-    { "KW1",  PAR_KW_CHECK,          0, 0, OnSetValueTrue         },
-    { "L0",   PAR_LINEFEED,          0, 0, OnSetValueFalse        },
-    { "L1",   PAR_LINEFEED,          0, 0, OnSetValueTrue         },
-    { "LP",   PAR_LOW_POWER_MODE,    0, 0, OnSetOK                },
-    { "M0",   PAR_MEMORY,            0, 0, OnSetValueFalse        },
-    { "M1",   PAR_MEMORY,            0, 0, OnSetValueTrue         },
-    { "MP",   PAR_J1939_MONITOR,     4, 7, OnJ1939Monitor         },
-    { "NL",   PAR_ALLOW_LONG,        0, 0, OnSetValueFalse        },
-    { "PC",   PAR_PROTOCOL_CLOSE,    0, 0, OnProtocolClose        },
-    { "R0",   PAR_RESPONSES,         0, 0, OnSetValueFalse        },
-    { "R1",   PAR_RESPONSES,         0, 0, OnSetValueTrue         },
-    { "RA",   PAR_RECEIVE_ADDRESS,   2, 2, OnSetValueInt          },
-    { "RTR",  PAR_CAN_SEND_RTR,      0, 0, OnSetOK                },
-    { "RV",   PAR_READ_VOLT,         0, 0, OnReadVoltage          },
-    { "S0",   PAR_SPACES,            0, 0, OnSetValueFalse        },
-    { "S1",   PAR_SPACES,            0, 0, OnSetValueTrue         },
-    { "SH",   PAR_HEADER_BYTES,      3, 3, OnSetBytes             },
-    { "SH",   PAR_HEADER_BYTES,      6, 6, OnSetBytes             },
-    { "SI",   PAR_SLOW_INIT,         0, 0, OnSetOK                },
-    { "SP",   PAR_PROTOCOL,          1, 2, OnSetProtocol          },
-    { "SR",   PAR_RECEIVE_FILTER,    2, 2, OnSetRcvAddress        },
-    { "SS",   PAR_STD_SEARCH_MODE,   0, 0, OnSetValueTrue         },
-    { "ST",   PAR_TIMEOUT,           2, 2, OnSetValueInt          },
-    { "SW",   PAR_WAKEUP_VAL,        2, 2, OnSetValueInt          },
-    { "TA",   PAR_TESTER_ADDRESS,    2, 2, OnSetValueInt          },
-    { "TP",   PAR_TRY_PROTOCOL,      1, 1, OnSetProtocol          },
-    { "TP",   PAR_TRY_PROTOCOL,      2, 2, OnSetProtocol          },
-    { "V0",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueFalse        },
-    { "V1",   PAR_CAN_VAIDATE_DLC,   0, 0, OnSetValueTrue         },
-    { "WM",   PAR_WM_HEADER,         1, 6, OnSetBytes             },
-    { "WS",   PAR_WARMSTART,         0, 0, OnReset                },
-    { "Z",    PAR_RESET_CPU,         0, 0, OnReset                }
+    { "#1",   PAR_CHIP_COPYRIGHT,    0,  0, OnSendReplyCopyright   },
+    { "#3",   PAR_WIRING_TEST,       0,  0, OnWiringTest           },
+    { "#RSN", PAR_GET_SERIAL,        0,  0, OnGetSerialNum         },
+    { "@1",   PAR_VERSION,           0,  0, OnSendReplyVersion     },
+    { "AL",   PAR_ALLOW_LONG,        0,  0, OnSetValueTrue         },
+    { "AR",   PAR_AUTO_RECEIVE,      0,  0, OnSetValueTrue         },
+    { "AT0",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
+    { "AT1",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
+    { "AT2",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
+    { "BD",   PAR_BUFFER_DUMP,       0,  0, OnBufferDump           },
+    { "BI",   PAR_BYPASS_INIT,       0,  0, OnSetValueTrue         },
+    { "BRD",  PAR_TRY_BRD,           2,  2, OnSetValueInt          },
+    { "BRT",  PAR_SET_BRD,           2,  2, OnSetValueInt          },
+    { "CAF0", PAR_CAN_CAF,           0,  0, OnSetValueFalse        },
+    { "CAF1", PAR_CAN_CAF,           0,  0, OnSetValueTrue         },
+    { "CEA",  PAR_CAN_EXT,           0,  0, OnResetValueInt        },
+    { "CEA",  PAR_CAN_EXT,           2,  2, OnSetValueInt          },
+    { "CF",   PAR_CAN_CF,            3,  3, OnSetValueInt          },
+    { "CF",   PAR_CAN_CF,            8,  8, OnSetValueInt          },
+    { "CFC0", PAR_CAN_FLOW_CONTROL,  0,  0, OnSetValueFalse        },
+    { "CFC1", PAR_CAN_FLOW_CONTROL,  0,  0, OnSetValueTrue         },
+    { "CM",   PAR_CAN_CM,            3,  3, OnSetValueInt          },
+    { "CM",   PAR_CAN_CM,            8,  8, OnSetValueInt          },
+    { "CP",   PAR_CAN_CP,            2,  2, OnSetValueInt          },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   0,  0, OnResetValueInt        },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   3,  3, OnSetValueInt          },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   8,  8, OnSetValueInt          },
+    { "CS",   PAR_CAN_SHOW_STATUS,   0,  0, OnCanShowStatus        },
+    { "CSM0", PAR_CAN_MONITORING,    0,  0, OnSetValueFalse        },
+    { "CSM1", PAR_CAN_MONITORING,    0,  0, OnSetValueTrue         },
+    { "CV",   PAR_CALIBRATE_VOLT,    4,  4, OnSetOK                },
+    { "D",    PAR_SET_DEFAULT,       0,  0, OnSetDefault           },
+    { "D0",   PAR_CAN_DLC,           0,  0, OnSetValueFalse        },
+    { "D1",   PAR_CAN_DLC,           0,  0, OnSetValueTrue         },
+    { "DM1",  PAR_J1939_DM1_MONITOR, 0,  0, OnSetOK                },
+    { "DP",   PAR_DESCRIBE_PROTOCOL, 0,  0, OnProtocolDescribe     },
+    { "DPN",  PAR_DESCRIBE_PROTCL_N, 0,  0, OnProtocolDescribeNum  },
+    { "E0",   PAR_ECHO,              0,  0, OnSetValueFalse        },
+    { "E1",   PAR_ECHO,              0,  0, OnSetValueTrue         },
+    { "FCSD", PAR_CAN_FLOW_CTRL_DAT, 2, 10, OnSetBytes             },
+    { "FCSM", PAR_CAN_FLOW_CONTROL,  1,  1, OnSetValueInt          },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3,  3, OnSetValueInt          },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8,  8, OnSetValueInt          },
+    { "FE",   PAR_FORGET_EVENTS,     0,  0, OnSetOK                },
+    { "FI",   PAR_FAST_INIT,         0,  0, OnSetOK                },
+    { "H0",   PAR_HEADER_SHOW,       0,  0, OnSetValueFalse        },
+    { "H1",   PAR_HEADER_SHOW,       0,  0, OnSetValueTrue         },
+    { "I",    PAR_INFO,              0,  0, OnSendReplyInterface   },
+    { "IB",   PAR_ISO_BAUDRATE,      2,  2, OnSetIsoBaudRate       },
+    { "IFR0", PAR_INFRAME_RESPONSE,  0,  0, OnSetOK                },
+    { "IFR1", PAR_INFRAME_RESPONSE,  0,  0, OnSetOK                },
+    { "IFR2", PAR_INFRAME_RESPONSE,  0,  0, OnSetOK                },
+    { "IIA",  PAR_ISO_INIT_ADDRESS,  2,  2, OnSetValueInt          },
+    { "JE",   PAR_J1939_FMT,         0,  0, OnSetValueTrue         },
+    { "JHF0", PAR_J1939_HEADER,      0,  0, OnSetValueFalse        },
+    { "JHF1", PAR_J1939_HEADER,      0,  0, OnSetValueTrue         },
+    { "JS",   PAR_J1939_FMT,         0,  0, OnSetValueFalse        },
+    { "JTM1", PAR_J1939_MLTPR5,      0,  0, OnSetValueFalse        },
+    { "JTM5", PAR_J1939_MLTPR5,      0,  0, OnSetValueTrue         },
+    { "KW",   PAR_KW_DISPLAY,        0,  0, OnKwDisplay            },
+    { "KW0",  PAR_KW_CHECK,          0,  0, OnSetValueFalse        },
+    { "KW1",  PAR_KW_CHECK,          0,  0, OnSetValueTrue         },
+    { "L0",   PAR_LINEFEED,          0,  0, OnSetValueFalse        },
+    { "L1",   PAR_LINEFEED,          0,  0, OnSetValueTrue         },
+    { "LP",   PAR_LOW_POWER_MODE,    0,  0, OnSetOK                },
+    { "M0",   PAR_MEMORY,            0,  0, OnSetValueFalse        },
+    { "M1",   PAR_MEMORY,            0,  0, OnSetValueTrue         },
+    { "MP",   PAR_J1939_MONITOR,     4,  7, OnJ1939Monitor         },
+    { "NL",   PAR_ALLOW_LONG,        0,  0, OnSetValueFalse        },
+    { "PC",   PAR_PROTOCOL_CLOSE,    0,  0, OnProtocolClose        },
+    { "R0",   PAR_RESPONSES,         0,  0, OnSetValueFalse        },
+    { "R1",   PAR_RESPONSES,         0,  0, OnSetValueTrue         },
+    { "RA",   PAR_RECEIVE_ADDRESS,   2,  2, OnSetValueInt          },
+    { "RTR",  PAR_CAN_SEND_RTR,      0,  0, OnSetOK                },
+    { "RV",   PAR_READ_VOLT,         0,  0, OnReadVoltage          },
+    { "S0",   PAR_SPACES,            0,  0, OnSetValueFalse        },
+    { "S1",   PAR_SPACES,            0,  0, OnSetValueTrue         },
+    { "SH",   PAR_HEADER_BYTES,      3,  3, OnSetCanHeader         },
+    { "SH",   PAR_HEADER_BYTES,      6,  6, OnSetBytes             },
+    { "SI",   PAR_SLOW_INIT,         0,  0, OnSetOK                },
+    { "SP",   PAR_PROTOCOL,          1,  2, OnSetProtocol          },
+    { "SR",   PAR_RECEIVE_FILTER,    2,  2, OnSetRcvAddress        },
+    { "SS",   PAR_STD_SEARCH_MODE,   0,  0, OnSetValueTrue         },
+    { "ST",   PAR_TIMEOUT,           2,  2, OnSetValueInt          },
+    { "SW",   PAR_WAKEUP_VAL,        2,  2, OnSetValueInt          },
+    { "TA",   PAR_TESTER_ADDRESS,    2,  2, OnSetValueInt          },
+    { "TP",   PAR_TRY_PROTOCOL,      1,  1, OnSetProtocol          },
+    { "TP",   PAR_TRY_PROTOCOL,      2,  2, OnSetProtocol          },
+    { "V0",   PAR_CAN_VAIDATE_DLC,   0,  0, OnSetValueFalse        },
+    { "V1",   PAR_CAN_VAIDATE_DLC,   0,  0, OnSetValueTrue         },
+    { "WM",   PAR_WM_HEADER,         2, 12, OnSetBytes             },
+    { "WS",   PAR_WARMSTART,         0,  0, OnReset                },
+    { "Z",    PAR_RESET_CPU,         0,  0, OnReset                }
 };
 
 static bool ValidateArgLength(const DispatchType& entry, const string& arg)

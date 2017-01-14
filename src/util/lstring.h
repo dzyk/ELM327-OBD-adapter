@@ -16,8 +16,6 @@
 
 using namespace std;
 
-//#define LSTRING_VALIDATE
-
 namespace util {
 
 class string {
@@ -50,14 +48,12 @@ public:
     char& operator[](uint32_t pos) { return data_[pos]; }
     string& operator=(const string& str);
     string& operator=(const char* s);
+    void reserve(uint32_t size);
 private:
     void init(uint32_t size);
     char* data_;
     uint16_t length_;
     uint16_t allocatedLength_;
-#ifdef LSTRING_VALIDATE
-    void validate(uint32_t size);
-#endif
 };
 
 bool operator==(const string& lhs, const char* rhs);

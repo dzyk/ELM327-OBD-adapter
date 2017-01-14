@@ -63,3 +63,17 @@ AdapterConfig* AdapterConfig::instance()
     static AdapterConfig instance;
     return &instance;
 }
+
+void AdapterConfig::clear()
+{
+    values_ = 0l;
+    int intPropLen = sizeof(intProps_) / sizeof(uint32_t);
+    for (int i = 0; i < intPropLen; i++) {
+        intProps_[i] = 0;
+    }
+    int btePropLen = sizeof(bytesProps_) / sizeof(ByteArray);
+    ByteArray ba;
+    for (int i = 0; i < btePropLen; i++) {
+        bytesProps_[i] = ba;
+    }
+}

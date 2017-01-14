@@ -34,6 +34,7 @@ protected:
     virtual void setFilterAndMask() = 0;
     virtual void processFlowFrame(const CanMsgBuffer* msgBuffer) = 0;
     bool sendToEcu(const uint8_t* data, int len);
+    bool sendToEcuSF(const uint8_t* data,  uint8_t firstByte, int len);
     bool receiveFromEcu(bool sendReply);
     bool isCustomMask() const { return mask_[0] != 0; }
     bool isCustomFilter() const { return filter_[0] != 0; }

@@ -28,6 +28,7 @@ public:
 	uint8_t length() const { return length_; }
     void length(uint8_t length) { length_ = length; }
 	virtual void addHeaderAndChecksum() = 0;
+    virtual void addChecksum() = 0;
 	virtual bool stripHeaderAndChecksum() = 0;
 	Ecumsg& operator+=(uint8_t byte) { data_[length_++] = byte; return *this; }
 	void setData(const uint8_t* data, uint8_t length);

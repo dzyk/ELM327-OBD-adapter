@@ -12,13 +12,9 @@
 #include <algorithm>
 #include "lstring.h"
 
-#ifdef LSTRING_VALIDATE
-    #define VALIDATE(size) validate(size)
-#else
-    #define VALIDATE(size)
-#endif
 
 using namespace std;
+static int32_t mcount;
     
 namespace util {
 
@@ -27,6 +23,7 @@ void string::init(uint32_t size)
     allocatedLength_ = size > STRING_SIZE ? size : STRING_SIZE;
     allocatedLength_++;
     data_ = new char[allocatedLength_]; // Including null terminator
+    mcount += allocatedLength_;
 }
 
 string::string(uint32_t size)
@@ -35,18 +32,6 @@ string::string(uint32_t size)
     data_[0] = 0;
     length_ = 0;
 }
-
-//
-// Validate the string memory overrun, throws exception
-//
-#ifdef LSTRING_VALIDATE
-void string::validate(uint32_t size)
-{
-    if (size >= allocatedLength_) {
-        abort();
-    }
-}
-#endif
 
 string::string(const char* s)
 {
@@ -73,6 +58,7 @@ string::string(uint32_t count, char ch)
 string::~string()
 {
     delete[] data_; 
+    mcount -= allocatedLength_;
 }
 
 void string::resize(uint32_t count)
@@ -82,7 +68,7 @@ void string::resize(uint32_t count)
         data_[length_] = 0;
     }
     else {
-        ; // nothing
+        ;
     }
 }
 
@@ -93,17 +79,28 @@ void string::resize(uint32_t count, char ch)
         data_[length_] = 0;
     }
     else if (count > length_) {
-        VALIDATE(count);
+        reserve(count + 1);
         memset(data_ + length_, ch, count - length_);
         length_ = count;
         data_[length_] = 0;
     }
 }
 
+void string::reserve(uint32_t size)
+{
+    if (size > allocatedLength_) {
+        char* data = new char[size];
+        memcpy(data, data_, length_);
+        delete[] data_;
+        data_ = data;
+        allocatedLength_ = size;
+    }
+}
+
 string& string::append(const char* s)
 {
     int len = strlen(s);
-    VALIDATE(length_ + len); 
+    reserve(length_ + len + 1);
     strcpy(data_ + length_, s);
     length_ += len;
     return *this;
@@ -111,7 +108,7 @@ string& string::append(const char* s)
 
 string& string::append(const char* s, uint32_t count)
 {
-    VALIDATE(length_ + count);
+    reserve(length_ + count + 1);
     memcpy(data_ + length_, s, count);
     length_ += count;
     data_[length_] = 0;
@@ -120,7 +117,6 @@ string& string::append(const char* s, uint32_t count)
 
 string& string::append(uint32_t count, char ch)
 {
-	VALIDATE(length_ + count);
     for (uint32_t i = 0; i < count; i++) {
         (*this) += ch;
     }
@@ -129,8 +125,8 @@ string& string::append(uint32_t count, char ch)
 
 string& string::assign(uint32_t count, char ch)
 {
+    reserve(count + 1);
     length_ = count;
-    VALIDATE(length_ + count);
     memset(data_, ch, count);
     data_[count] = 0;
     return *this;
@@ -148,7 +144,7 @@ string& string::operator+=(const char* s)
 
 string& string::operator+=(char ch)
 {
-    VALIDATE(length_ + 1);
+    reserve(length_ + 2);
     data_[length_] = ch;
     data_[++length_] = 0;
     return *this;
@@ -177,7 +173,7 @@ string string::substr(uint32_t pos, uint32_t count) const
 
 string& string::operator=(const string& str)
 {
-    VALIDATE(str.length_);
+    reserve(str.length_ + 1);
     memcpy(data_, str.data_, str.length_ + 1); // including null terminator
     length_ = str.length_;
     return *this;
@@ -185,9 +181,10 @@ string& string::operator=(const string& str)
 
 string& string::operator=(const char* s)
 {
-    length_ = strlen(s);
-    VALIDATE(length_);
+    int len = strlen(s);
+    reserve(len + 1);
     strcpy(data_, s);
+    length_ = len;
     return *this;
 }
 void string::clear() 

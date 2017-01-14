@@ -18,6 +18,7 @@ class EcumsgISO9141 : public Ecumsg {
 public:
     virtual void addHeaderAndChecksum();
     virtual bool stripHeaderAndChecksum();
+    virtual void addChecksum();
 private:
     EcumsgISO9141(uint32_t size) : Ecumsg(ISO9141, size) {
         const uint8_t header[] = { 0x68, 0x6A, 0xF1 };
@@ -30,6 +31,7 @@ class EcumsgISO14230 : public Ecumsg {
 public:
     virtual void addHeaderAndChecksum();
     virtual bool stripHeaderAndChecksum();
+    virtual void addChecksum();
 private:    
     EcumsgISO14230(uint32_t size) : Ecumsg(ISO14230, size) {
         const uint8_t header[] = { 0xC0, 0x33, 0xF1 };
@@ -42,6 +44,7 @@ class EcumsgVPW : public Ecumsg {
 public:
     virtual void addHeaderAndChecksum();
     virtual bool stripHeaderAndChecksum();
+    virtual void addChecksum();
 private:    
     EcumsgVPW(uint32_t size) : Ecumsg(VPW, size) {
         const uint8_t header[] = { 0x68, 0x6A, 0xF1 };
@@ -54,6 +57,7 @@ class EcumsgPWM : public Ecumsg {
 public:
     virtual void addHeaderAndChecksum();
     virtual bool stripHeaderAndChecksum();
+    virtual void addChecksum();
 private:
     EcumsgPWM(uint32_t size) : Ecumsg(PWM, size) {
         const uint8_t header[] = { 0x61, 0x6A, 0xF1 };
@@ -226,6 +230,25 @@ void EcumsgISO9141::addHeaderAndChecksum()
 }
 
 /**
+ * Adds the checksum to ISO 9141 message
+ */
+void EcumsgISO9141::addChecksum()
+{
+    IsoAddChecksum(data_, length_);
+}
+
+/**
+ * Strips the header/checksum from ISO 9141 message
+ * @return true if header is valid, false otherwise
+ */
+bool EcumsgISO9141::stripHeaderAndChecksum()
+{
+    StripHeader(data_, length_);
+    ISOStripChecksum(data_, length_);
+    return true;
+}
+
+/**
  * Adds the header/checksum to ISO 14230 message
  */
 void EcumsgISO14230::addHeaderAndChecksum()
@@ -243,6 +266,25 @@ void EcumsgISO14230::addHeaderAndChecksum()
 }
 
 /**
+ * Adds the checksum to ISO 14230 message
+ */
+void EcumsgISO14230::addChecksum()
+{
+    IsoAddChecksum(data_, length_);
+}
+
+/**
+ * Strips the header/checksum from ISO 14230 message
+ * @return true if header is valid, false otherwise
+ */
+bool EcumsgISO14230::stripHeaderAndChecksum()
+{
+    StripHeader(data_, length_);
+    ISOStripChecksum(data_, length_);
+    return true;
+}
+
+/**
  * Adds the header/checksum to J1850 VPW message
  */
 void EcumsgVPW::addHeaderAndChecksum()
@@ -253,6 +295,25 @@ void EcumsgVPW::addHeaderAndChecksum()
     memcpy(&data_[0], header_, HEADER_SIZE);
     
     J1850AddChecksum(data_, length_);
+}
+
+/**
+ * Adds the checksum to J1850 VPW message
+ */
+void EcumsgVPW::addChecksum()
+{
+    J1850AddChecksum(data_, length_);
+}
+
+/**
+ * Strips the header/checksum from J1850 VPW message
+ * @return true if header is valid, false otherwise
+ */
+bool EcumsgVPW::stripHeaderAndChecksum()
+{
+    StripHeader(data_, length_);
+    J1850StripChecksum(data_, length_);
+    return true;
 }
 
 /**
@@ -269,36 +330,11 @@ void EcumsgPWM::addHeaderAndChecksum()
 }
 
 /**
- * Strips the header/checksum from ISO 9141 message
- * @return true if header is valid, false otherwise
+ * Adds the checksum to J1850 PWM message
  */
-bool EcumsgISO9141::stripHeaderAndChecksum()
+void EcumsgPWM::addChecksum()
 {
-    StripHeader(data_, length_);
-    ISOStripChecksum(data_, length_);
-    return true;
-}
-
-/**
- * Strips the header/checksum from ISO 14230 message
- * @return true if header is valid, false otherwise
- */
-bool EcumsgISO14230::stripHeaderAndChecksum()
-{
-    StripHeader(data_, length_);
-    ISOStripChecksum(data_, length_);
-    return true;
-}
-
-/**
- * Strips the header/checksum from J1850 VPW message
- * @return true if header is valid, false otherwise
- */
-bool EcumsgVPW::stripHeaderAndChecksum()
-{
-    StripHeader(data_, length_);
-    J1850StripChecksum(data_, length_);
-    return true;
+    J1850AddChecksum(data_, length_);
 }
 
 /**

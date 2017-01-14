@@ -20,6 +20,7 @@ public:
     virtual int getProtocol() const { return PROT_AUTO; }
     virtual void wiringCheck() {}
 private:
+    int doConnect(int protocol, bool sendReply);
 };
 
 #endif //__AUTO_PROFILE_H__

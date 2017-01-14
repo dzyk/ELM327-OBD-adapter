@@ -187,19 +187,26 @@ int OBDProfile::onRequestImpl(const string& cmdString)
 
     // The convoluted logic
     //
-    bool sendReply = (cmdString == OBD_TEST_SEQ);
+    bool sendReply = (cmdString == OBD_TEST_SEQ) && 
+        (OBDProfile::instance()->getProtocol() == PROT_AUTO);
     
     int protocol = 0;
     int sts = REPLY_NO_DATA;
     ProtocolAdapter* autoAdapter = ProtocolAdapter::getAdapter(ADPTR_AUTO);
     if (adapter_ == autoAdapter) {
         protocol = autoAdapter->onConnectEcu(sendReply);
+        // onConnectEcu() not returning status, just query it
+        sts = adapter_->getStatus();
     }
     else {
         protocol = adapter_->onConnectEcu(sendReply);
+        // status
+        sts = adapter_->getStatus();
         bool useAutoSP = AdapterConfig::instance()->getBoolProperty(PAR_USE_AUTO_SP);
-        if (protocol == 0 && useAutoSP) {
+        if (protocol == 0 && useAutoSP && sts == REPLY_NO_DATA) {
             protocol = autoAdapter->onConnectEcu(sendReply);
+            // and status one more time
+            sts = autoAdapter->getStatus();
         }
     }
     if (protocol) {
@@ -279,5 +286,6 @@ void OBDProfile::wiringCheck()
 ProtocolAdapter::ProtocolAdapter()
 { 
     connected_ = false;
+    sts_ = REPLY_NO_DATA;
     config_ = AdapterConfig::instance();
 }

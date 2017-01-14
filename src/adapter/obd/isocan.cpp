@@ -18,7 +18,7 @@
 using namespace std;
 using namespace util;
 
-const int ISO_CAN_LEN = 7;
+const int ISO_CAN_FRAME_LEN = 7;
 
 IsoCanAdapter::IsoCanAdapter()
 {
@@ -27,6 +27,7 @@ IsoCanAdapter::IsoCanAdapter()
     filter_[0] = mask_[0] = 0;
     driver_ = CanDriver::instance();
     history_ = new CanHistory();
+    sts_         = REPLY_NO_DATA;
 }
 
 /**
@@ -58,11 +59,23 @@ void IsoCanAdapter::setMask(const uint8_t* mask)
  */
 bool IsoCanAdapter::sendToEcu(const uint8_t* data, int len)
 {
-    if (len > ISO_CAN_LEN) {
-        return false; // REPLY_DATA_ERROR
+    if (len <= ISO_CAN_FRAME_LEN) {
+        return sendToEcuSF(data, len, len);
     }
+    else {
+        return false;
+    }
+}
+/**
+ * Send buffer to ECU using CAN
+ * @param[in] data The message data bytes
+ * @param[in] len The message length
+ * @return true if OK, false if data issues
+ */
+bool IsoCanAdapter::sendToEcuSF(const uint8_t* data, uint8_t firstByte, int len)
+{
     CanMsgBuffer msgBuffer(getID(), extended_, 8, 0);
-    msgBuffer.data[0] = len;
+    msgBuffer.data[0] = firstByte;
     memcpy(msgBuffer.data + 1, data, len);
     
     // Message log
@@ -184,7 +197,7 @@ int IsoCanAdapter::onRequest(const uint8_t* data, int len)
 int IsoCanAdapter::onConnectEcu(bool sendReply)
 {
     CanMsgBuffer msgBuffer(getID(), extended_, 8, 0x02, 0x01, 0x00);
-
+    sts_ = REPLY_OK;
     open();
 
     switch (OBDProfile::instance()->getProtocol()) {
@@ -204,6 +217,7 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
         }
     }
     close(); // Close only if not succeeded
+    sts_ = REPLY_NO_DATA;
     return 0;
 }
 

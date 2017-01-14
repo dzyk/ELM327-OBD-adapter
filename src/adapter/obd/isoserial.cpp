@@ -89,6 +89,7 @@ IsoSerialAdapter::IsoSerialAdapter()
     uart_              = EcuUart::instance();
     keepAliveTimer_    = LongTimer::instance();
     p3Timer_           = Timer::instance(1);
+    sts_            = REPLY_NO_DATA;
 }
 
 /**
@@ -487,6 +488,7 @@ void IsoSerialAdapter::sendHeartBeat()
     
     if (customWkpMsg_[0]) { // Use custom wakeup seq
         msg->setData(customWkpMsg_ + 1, customWkpMsg_[0]);
+        msg->addChecksum();
     }
     else {
         if (protocol_ == PROT_ISO9141) {
@@ -534,7 +536,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
     bool reply = false;
     const int p2Timeout = getP2MaxTimeout();
     const int maxLen = get2MaxLen();
-    util::string str;
+    util::string str(OBD_IN_MSG_LEN);
     
     uint8_t msgtype = (protocol_ == PROT_ISO14230) ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
     unique_ptr<Ecumsg> msg(Ecumsg::instance(msgtype));
@@ -649,23 +651,24 @@ int IsoSerialAdapter::onConnectEcu(bool sendReply)
     open();
 
     int requestedProtocol = protocol_;
+    int connectStatus = 0;
     
     // Get ISO9141/14230 message formatted
     if (requestedProtocol != PROT_AUTO) {
         switch (requestedProtocol) {
             case PROT_ISO9141:
             case PROT_ISO14230_5BPS:
-                onConnectEcuSlow(requestedProtocol);
+                connectStatus = onConnectEcuSlow(requestedProtocol);
                 break;
             case PROT_ISO14230:
-                onConnectEcuFast(requestedProtocol);
+                connectStatus = onConnectEcuFast(requestedProtocol);
                 break;
         }
     }
     else {
-        onConnectEcuSlow(PROT_AUTO);
+        connectStatus = onConnectEcuSlow(PROT_AUTO);
         if (!connected_) {
-            onConnectEcuFast(PROT_AUTO);
+            connectStatus = onConnectEcuFast(PROT_AUTO);
         }
     }
 
@@ -679,6 +682,7 @@ int IsoSerialAdapter::onConnectEcu(bool sendReply)
     else {
         close(); // Close only if not succeeded
     }
+    setStatus(connectStatus);
     return connected_ ? protocol_ : 0;
 }
 
@@ -690,7 +694,7 @@ void IsoSerialAdapter::wiringCheck()
     // Disable USART
     uart_->setBitBang(true);
 
-    // Send 1 (set port to 0)
+    // Send 1 (set K line to 0)
     uart_->setBit(1);
     Delay1ms(1);
     if (uart_->getBit() != 1) {
@@ -698,7 +702,7 @@ void IsoSerialAdapter::wiringCheck()
         goto ext;
     }        
     
-    // Send 0 (set port to 1)
+    // Send 0 (set K line to 1)
     uart_->setBit(0);
     Delay1ms(1);
     if (uart_->getBit() == 0) {

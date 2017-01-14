@@ -22,28 +22,42 @@ int AutoAdapter::onRequest(const uint8_t* data, int len)
     return REPLY_NO_DATA;
 }
 
-int AutoAdapter::onConnectEcu(bool sendReply)
+int AutoAdapter::doConnect(int protocol, bool sendReply)
 {
-    // PWM
-    int protocol = ProtocolAdapter::getAdapter(ADPTR_PWM)->onConnectEcu(sendReply);
+    ProtocolAdapter* adapter = ProtocolAdapter::getAdapter(protocol);
+    protocol = adapter->onConnectEcu(sendReply);
     if (protocol != 0) {
+        setStatus(adapter->getStatus());
         return protocol;
     }
-    // VPW
-    protocol = ProtocolAdapter::getAdapter(ADPTR_VPW)->onConnectEcu(sendReply);
-    if (protocol != 0)
-        return protocol;
-    // ISO
-    protocol = ProtocolAdapter::getAdapter(ADPTR_ISO)->onConnectEcu(sendReply);
-    if (protocol != 0)
-        return protocol;
-    // CAN
-    protocol = ProtocolAdapter::getAdapter(ADPTR_CAN)->onConnectEcu(sendReply);
-    if (protocol != 0)
-        return protocol;
-    // CAN 29
-    protocol = ProtocolAdapter::getAdapter(ADPTR_CAN_EXT)->onConnectEcu(sendReply);
-    if (protocol != 0)
-        return protocol;
     return 0;
 }
+
+int AutoAdapter::onConnectEcu(bool sendReply)
+{
+    int protocol = 0;
+    
+    // PWM
+    protocol = doConnect(ADPTR_PWM, sendReply);
+    if (protocol > 0)
+        return protocol;
+    
+    // VPW
+    protocol = doConnect(ADPTR_VPW, sendReply);
+    if (protocol > 0)
+        return protocol;
+    
+    // ISO
+    protocol = doConnect(ADPTR_ISO, sendReply);
+    if (protocol > 0)
+        return protocol;
+    
+    // CAN
+    protocol = doConnect(ADPTR_CAN, sendReply);
+    if (protocol > 0)
+        return protocol;
+
+    // CAN 29
+    return doConnect(ADPTR_CAN_EXT, sendReply);
+}
+
