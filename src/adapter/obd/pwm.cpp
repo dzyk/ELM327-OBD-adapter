@@ -309,7 +309,7 @@ int PwmAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
 int PwmAdapter::getP2MaxTimeout() const
 {
     int p2Timeout = config_->getIntProperty(PAR_TIMEOUT);
-    return p2Timeout ? p2Timeout : P2_J1850;
+    return p2Timeout ? (p2Timeout * 4) : P2_J1850;
 }
 
 /**

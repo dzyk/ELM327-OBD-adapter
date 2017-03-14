@@ -23,7 +23,6 @@ public:
     bool getEcho(uint8_t byte);
     bool ready();
     void clear() {}
-    void clearRxFifo() {}
     void setBitBang(bool val);
     void setBit(uint32_t val);
     uint32_t getBit();

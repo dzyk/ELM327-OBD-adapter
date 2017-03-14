@@ -12,43 +12,21 @@
 #include <led.h>
 #include "canmsgbuffer.h"
 #include "obdprofile.h"
+#include "j1979.h"
 #include "isocan.h"
 #include "canhistory.h"
 
 using namespace std;
 using namespace util;
 
-const int ISO_CAN_FRAME_LEN = 7;
+const int CAN_FRAME_LEN = 8;
 
 IsoCanAdapter::IsoCanAdapter()
 {
     extended_ = false;
-    canPriority_ = 0;
-    filter_[0] = mask_[0] = 0;
     driver_ = CanDriver::instance();
     history_ = new CanHistory();
-    sts_         = REPLY_NO_DATA;
-}
-
-/**
-
- * Setting CAN custom filter
- * @param[in] filter The filter bytes
- */
-void IsoCanAdapter::setFilter(const uint8_t* filter)
-{
-    memcpy(filter_, filter, sizeof(filter_));
-    setFilterAndMask();
-}
-
-/**
- * Setting CAN custom mask
- * @param[in] mask The mask bytes
- */
-void IsoCanAdapter::setMask(const uint8_t* mask)
-{
-    memcpy(mask_, mask, sizeof(mask_));
-    setFilterAndMask();
+    sts_     = REPLY_NO_DATA;
 }
 
 /**
@@ -57,14 +35,33 @@ void IsoCanAdapter::setMask(const uint8_t* mask)
  * @param[in] len The message length
  * @return true if OK, false if data issues
  */
-bool IsoCanAdapter::sendToEcu(const uint8_t* data, int len)
+bool IsoCanAdapter::sendToEcu(const uint8_t* buff, int length)
 {
-    if (len <= ISO_CAN_FRAME_LEN) {
-        return sendToEcuSF(data, len, len);
+    uint8_t dlc = 0;
+    uint8_t data[CAN_FRAME_LEN] = {0};
+    
+    if (length > 0x0FFF)
+        return false; // The max CAN length
+
+    // Extended address byte
+    const ByteArray* canExt = config_->getBytesProperty(PAR_CAN_EXT);
+    int totalLen = canExt->length ? (length + 2) : (length + 1); // + cea byte, + len byte
+    
+    if (totalLen <= CAN_FRAME_LEN) { 
+        int i = 0;
+        if (canExt->length) { // CAN extended addressing
+            data[i++] = canExt->data[0];
+        }
+
+        // OBD type format with dlc=8, and first byte = length
+        //
+        dlc = (getProtocol() != PROT_ISO15765_USR_B) ? CAN_FRAME_LEN : totalLen;
+        data[i++] = length;
+        memcpy(data + i, buff, length);
+        return sendFrameToEcu(data, totalLen, dlc);
     }
-    else {
+    else
         return false;
-    }
 }
 /**
  * Send buffer to ECU using CAN
@@ -72,11 +69,10 @@ bool IsoCanAdapter::sendToEcu(const uint8_t* data, int len)
  * @param[in] len The message length
  * @return true if OK, false if data issues
  */
-bool IsoCanAdapter::sendToEcuSF(const uint8_t* data, uint8_t firstByte, int len)
+bool IsoCanAdapter::sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc)
 {
-    CanMsgBuffer msgBuffer(getID(), extended_, 8, 0);
-    msgBuffer.data[0] = firstByte;
-    memcpy(msgBuffer.data + 1, data, len);
+    CanMsgBuffer msgBuffer(getID(), extended_, dlc, 0);
+    memcpy(msgBuffer.data, data, len);
     
     // Message log
     history_->add2Buffer(&msgBuffer, true, 0);
@@ -126,15 +122,35 @@ void IsoCanAdapter::processFrame(const CanMsgBuffer* msg)
 }
 
 /**
+ * ISO14230 Timing Exceptions handler, requestCorrectlyReceived-ResponsePending
+ * @param[in] msg CanMsgbuffer instance pointer
+ * @param[in] canExt CAN extended mode flag
+ * @return true if timeout exception, false otherwise
+ */
+bool IsoCanAdapter::checkResponsePending(const CanMsgBuffer* msg, bool canExt)
+{
+    int offst = canExt ? 1 : 0;
+    
+    // Looking for "requestCorrectlyReceived-ResponsePending", 7F.XX.78
+    if (msg->data[1 + offst] == 0x7F && msg->data[3 + offst] == 0x78) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * Receives a sequence of bytes from the CAN bus
  * @param[in] sendReply send reply to user flag
  * @return true if message received, false otherwise
  */
 bool IsoCanAdapter::receiveFromEcu(bool sendReply)
 {
+    const int MAX_PEND_RESP_NUM = 100;
+    int pendRespCounter = 0;
     const int p2Timeout = getP2MaxTimeout();
     CanMsgBuffer msgBuffer;
     bool msgReceived = false;
+    bool canExt = config_->getBytesProperty(PAR_CAN_EXT)->length;
     
     Timer* timer = Timer::instance(0);
     timer->start(p2Timeout);
@@ -147,13 +163,31 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
         // Message log
         history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
         
-        // Reload the timer
+        if (!checkResponsePending(&msgBuffer, canExt) || pendRespCounter > MAX_PEND_RESP_NUM) {
+            // Reload the timer, regular P2 timeout
         timer->start(p2Timeout);
+        }
+        else {
+            // Reload the timer, P2* timeout
+            timer->start(P2_MAX_TIMEOUT_S);
+            pendRespCounter++;
+        }
+        
+        // Check the CAN receiver address
+        /*
+        if (canExt) {
+            if (msgBuffer.data[0] != testerAddress)
+                continue;
+        }*/
 
         msgReceived = true;
         if (!sendReply)
             continue;
-        switch ((msgBuffer.data[0] & 0xF0) >> 4) {
+        
+        // CAN extextended address
+        uint8_t keyByte = canExt ? msgBuffer.data[1] : msgBuffer.data[0];
+        
+        switch ((keyByte & 0xF0) >> 4) {
             case CANSingleFrame:
                 processFrame(&msgBuffer);
                 break;
@@ -164,16 +198,52 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
             case CANConsecutiveFrame:
                 processFrame(&msgBuffer);
                 break;
+            default:
+                processFrame(&msgBuffer); // oops
         }
     } while (!timer->isExpired());
 
     return msgReceived;
 }
 
+bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin)
+{
+    const int p2Timeout = getP2MaxTimeout();
+    bool canUseExtended = (config_->getBytesProperty(PAR_CAN_EXT)->length > 0);
+    CanMsgBuffer msgBuffer;
+    
+    Timer* timer = Timer::instance(0);
+    timer->start(p2Timeout);
+
+    do {
+        if (!driver_->isReady())
+            continue;
+        driver_->read(&msgBuffer);
+        
+        // Message log
+        history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
+
+        if (!canUseExtended && (msgBuffer.data[0] & 0xF0) == 0x30) {
+            fs = msgBuffer.data[0] & 0x0F;
+            bs = msgBuffer.data[1];
+            stmin = msgBuffer.data[2];
+            return true;
+        }
+        else if (canUseExtended && (msgBuffer.data[1] & 0xF0) == 0x30) {
+            fs = msgBuffer.data[1] & 0x0F;
+            bs = msgBuffer.data[2];
+            stmin = msgBuffer.data[3];
+            return true;
+        }
+    } while (!timer->isExpired());
+
+    return false;
+}
+
 int IsoCanAdapter::getP2MaxTimeout() const
 {
     int p2Timeout = config_->getIntProperty(PAR_TIMEOUT); 
-    return p2Timeout ? p2Timeout : CAN_P2_MAX_TIMEOUT;
+    return p2Timeout ? (p2Timeout * 4) : P2_MAX_TIMEOUT;
 }
 
 /**
@@ -200,16 +270,7 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
     sts_ = REPLY_OK;
     open();
 
-    switch (OBDProfile::instance()->getProtocol()) {
-    	case PROT_ISO15765_1150:
-    		connected_ = true;
-    		return PROT_ISO15765_1150;
-    	case PROT_ISO15765_2950:
-    		connected_ = true;
-    		return PROT_ISO15765_2950;
-
-    }
-
+    if (!config_->getBoolProperty(PAR_BYPASS_INIT)) {
     if (driver_->send(&msgBuffer)) { 
         if (receiveFromEcu(sendReply)) {
             connected_ = true;
@@ -219,6 +280,11 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
     close(); // Close only if not succeeded
     sts_ = REPLY_NO_DATA;
     return 0;
+}
+    else {
+        connected_ = true;
+        return extended_ ? PROT_ISO15765_2950 : PROT_ISO15765_1150;
+    }
 }
 
 /**
@@ -271,13 +337,11 @@ void IsoCan11Adapter::open()
 
 uint32_t IsoCan11Adapter::getID() const
 { 
-    NumericType id;
+    IntAggregate id;
 
-    const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
-    if (bytes->length) {
-        const uint8_t* customHdr = bytes->data;
-        id.bvalue[1] = customHdr[2] & 0x07;
-        id.bvalue[0] = customHdr[3];
+    const ByteArray* hdr = config_->getBytesProperty(PAR_HEADER_BYTES);
+    if (hdr->length) {
+        id.lvalue = hdr->asCanId() & 0x7FF;
     }
     else {
         id.lvalue = 0x7DF;
@@ -288,48 +352,90 @@ uint32_t IsoCan11Adapter::getID() const
 void IsoCan11Adapter::setFilterAndMask()
 {
     // Mask 11 bit
-    NumericType mask;
-
-    if (isCustomMask()) {
-        mask.bvalue[1] = mask_[3] & 0x07;
-        mask.bvalue[0] = mask_[4];
+    IntAggregate mask;
+    const ByteArray* maskBytes = config_->getBytesProperty(PAR_CAN_MASK);
+    if (maskBytes->length) {
+        mask.lvalue = maskBytes->asCanId() & 0x7FF;
     }
     else { // Default mask for 11 bit CAN
         mask.lvalue = 0x7F8;
     }
+    
     // Filter 11 bit
-    NumericType filter;
-    if (isCustomFilter()) {
-        filter.bvalue[1] = filter_[3] & 0x07;
-        filter.bvalue[0] = filter_[4];
+    IntAggregate filter;
+    const ByteArray* filterBytes = config_->getBytesProperty(PAR_CAN_FILTER);
+    if (filterBytes->length) {
+        filter.lvalue = filterBytes->asCanId() & 0x7FF;
     }
     else { // Default filter for 11 bit CAN
         filter.lvalue = 0x7E8;
     }
+    
     // Set mask and filter 11 bit
     driver_->setFilterAndMask(filter.lvalue, mask.lvalue, false);
 }
 
 void IsoCan11Adapter::processFlowFrame(const CanMsgBuffer* msg)
 {
-    CanMsgBuffer ctrlData(getID(), false, 8, 0x30, 0x0, 0x00);
+    if (!config_->getBoolProperty(PAR_CAN_FLOW_CONTROL))
+        return; // ATCFC0
+    
+    int flowMode = config_->getIntProperty(PAR_CAN_FLOW_CTRL_MD);
+    const ByteArray* hdr = config_->getBytesProperty(PAR_CAN_FLOW_CTRL_HDR);
+    const ByteArray* bytes = config_->getBytesProperty(PAR_CAN_FLOW_CTRL_DAT);
+    
+    CanMsgBuffer ctrlData(getID(), false, 8, 0x30, 0x00, 0x00);
     ctrlData.id |= (msg->id & 0x07);
+    if(flowMode == 1) {
+        ctrlData.id = hdr->asCanId() & 0x7FF;
+    }
+    if(flowMode > 0) {
+        memset(ctrlData.data, CanMsgBuffer::DefaultByte, sizeof(ctrlData.data));
+        memcpy(ctrlData.data, bytes->data, bytes->length);
+    }
     driver_->send(&ctrlData);
     
     // Message log
     history_->add2Buffer(&ctrlData, true, 0);
 }
 
+int IsoCan11Adapter::getProtocol() const
+{ 
+    return config_->getIntProperty(PAR_PROTOCOL);
+}
+
 void IsoCan11Adapter::getDescription()
 {
+    const char* desc = nullptr;
     bool useAutoSP = config_->getBoolProperty(PAR_USE_AUTO_SP);
-    AdptSendReply(useAutoSP ? "AUTO, ISO 15765-4 (CAN 11/500)" : "ISO 15765-4 (CAN 11/500)");
+    int protocol = getProtocol();
+    
+    if (protocol == PROT_ISO15765_USR_B) {
+        desc = "USER1 (CAN 11/500)";
+    }
+    else {
+        desc = useAutoSP ? "AUTO, ISO 15765-4 (CAN 11/500)" : "ISO 15765-4 (CAN 11/500)";
+    }
+    AdptSendReply(desc);
 }
 
 void IsoCan11Adapter::getDescriptionNum()
 {
+    const char* desc = nullptr;
     bool useAutoSP = config_->getBoolProperty(PAR_USE_AUTO_SP);
-    AdptSendReply(useAutoSP ? "A6" : "6"); 
+    int protocol = getProtocol();
+    
+    if (protocol == PROT_ISO15765_USR_B) {
+        desc = "B";
+    }
+    else {
+        desc = useAutoSP ? "A6" : "6";
+    }
+    AdptSendReply(desc); 
+}
+
+void IsoCan11Adapter::setReceiveAddress(const util::string& par)
+{
 }
 
 /**
@@ -345,15 +451,21 @@ void IsoCan29Adapter::open()
 
 uint32_t IsoCan29Adapter::getID() const
 { 
-    NumericType id;
+    IntAggregate id;
+    uint8_t canPriority = 0;
 
-    const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
-    if (bytes->length) {
-        const uint8_t* customHdr = bytes->data;
-        id.bvalue[3] = canPriority_;
-        id.bvalue[2] = customHdr[1];
-        id.bvalue[1] = customHdr[2];
-        id.bvalue[0] = customHdr[3];
+    const ByteArray* prioBits = config_->getBytesProperty(PAR_CAN_PRIORITY_BITS);
+    if (prioBits->length) {
+        canPriority = prioBits->data[0] & 0x1F;
+    }
+    else {
+        canPriority = 0x18; // Default for OBD  
+    }
+    
+    const ByteArray* hdr = config_->getBytesProperty(PAR_HEADER_BYTES);
+    if (hdr->length) {
+        id.lvalue = hdr->asCanId();
+        id.bvalue[3] = canPriority;
     }
     else {
         id.lvalue = 0x18DB33F1;
@@ -364,28 +476,25 @@ uint32_t IsoCan29Adapter::getID() const
 void IsoCan29Adapter::setFilterAndMask() 
 {
     // Mask 29 bit
-    NumericType mask;
-
-    if (isCustomMask()) {
-        mask.bvalue[3] = mask_[1];
-        mask.bvalue[2] = mask_[2];
-        mask.bvalue[1] = mask_[3];
-        mask.bvalue[0] = mask_[4];
+    IntAggregate mask;
+    const ByteArray* maskBytes = config_->getBytesProperty(PAR_CAN_MASK);
+    if (maskBytes->length) {
+        mask.lvalue = maskBytes->asCanId() & 0x1FFFFFFF;
     }
-    else { // Default for 29 bit CAN
+    else { // Default mask for 29 bit CAN
         mask.lvalue = 0x1FFFFF00;
     }
+    
     // Filter 29 bit
-    NumericType filter;
-    if (isCustomFilter()) {
-        filter.bvalue[3] = filter_[1];
-        filter.bvalue[2] = filter_[2];
-        filter.bvalue[1] = filter_[3];
-        filter.bvalue[0] = filter_[4];
+    IntAggregate filter;
+    const ByteArray* filterBytes = config_->getBytesProperty(PAR_CAN_FILTER);
+    if (filterBytes->length) {
+        filter.lvalue = filterBytes->asCanId() & 0x1FFFFFFF;
     }
     else { // Default for 29 bit CAN
         filter.lvalue = 0x18DAF100;
     }
+    
     // Set mask and filter 29 bit
     driver_->setFilterAndMask(filter.lvalue, mask.lvalue, true);
 }
@@ -410,4 +519,8 @@ void IsoCan29Adapter::getDescriptionNum()
 {
     bool useAutoSP = config_->getBoolProperty(PAR_USE_AUTO_SP);
     AdptSendReply(useAutoSP ? "A7" : "7"); 
+}
+
+void IsoCan29Adapter::setReceiveAddress(const util::string& par)
+{
 }

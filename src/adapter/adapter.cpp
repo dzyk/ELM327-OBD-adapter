@@ -21,7 +21,7 @@
 using namespace std;
 using namespace util;
 
-static string CmdBuffer(RX_CMD_LEN);
+static string CmdBuffer(RX_BUFFER_LEN);
 static CmdUart* glblUart;
 
 /**

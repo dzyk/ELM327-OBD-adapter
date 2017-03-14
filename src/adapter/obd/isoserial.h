@@ -41,18 +41,17 @@ private:
     bool isKeepAlive();
     bool sendToEcu(const Ecumsg* msg, int p4Timeout);
     void receiveFromEcu(Ecumsg* msg, int maxLen, int p2Timeout, int p1Timeout);
+    bool checkResponsePending(const Ecumsg* msg);
     void configureProperties();
     int  onConnectEcuSlow(int protocol);
     int  onConnectEcuFast(int protocol);
     int  getP2MaxTimeout() const;
     int  get2MaxLen() const;
-
+    uint32_t getWakeupTime() const; 
     bool     kwCheck_;
-    uint8_t  customWkpMsg_[6];
     uint8_t  isoKwrds_[2];
     int      protocol_;
     uint8_t  isoInitByte_;
-    uint32_t wakeupTime_;
     EcuUart* uart_;
     LongTimer* keepAliveTimer_;
     Timer*   p3Timer_;

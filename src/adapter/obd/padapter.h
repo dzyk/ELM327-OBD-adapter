@@ -39,7 +39,8 @@ enum ProtocolTypes {
    PROT_ISO15765_1150,
    PROT_ISO15765_2950,
    PROT_ISO15765_1125,
-   PROT_ISO15765_2925
+   PROT_ISO15765_2925,
+   PROT_ISO15765_USR_B = 0x0B
 };
 
 // Adapters
@@ -69,9 +70,11 @@ public:
     virtual void sendHeartBeat() {}
     virtual int getProtocol() const = 0;
     virtual void kwDisplay() {}
+    virtual void setFilterAndMask() {}
     bool isConnected() const { return connected_; }
     void setStatus(int sts) { sts_ = sts; }
     int getStatus() const { return sts_; }
+    static void clearHistory();
 protected:
     static void insertToHistory(const Ecumsg* msg);
     static void appendToHistory(const Ecumsg* msg);

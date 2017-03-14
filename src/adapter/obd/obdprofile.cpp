@@ -95,6 +95,7 @@ int OBDProfile::setProtocol(int num, bool refreshConnection)
                 adapter_->setProtocol(PROT_ISO14230);
             break;
         case PROT_ISO15765_1150:
+        case PROT_ISO15765_USR_B:
             adapter_ = ProtocolAdapter::getAdapter(ADPTR_CAN);
             break;
         case PROT_ISO15765_2950:
@@ -280,6 +281,11 @@ void OBDProfile::wiringCheck()
     ProtocolAdapter::getAdapter(ADPTR_CAN)->wiringCheck();
 }
 
+void OBDProfile::setFilterAndMask()
+{
+    adapter_->setFilterAndMask();
+}
+ 
 /**
  * Constructs ProtocolAdater
  */

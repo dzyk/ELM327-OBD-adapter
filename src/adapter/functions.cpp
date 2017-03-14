@@ -22,7 +22,7 @@ using namespace util;
  */
 void CanIDToString(uint32_t num, string& str, bool extended)
 {
-    NumericType value(num);
+    IntAggregate value(num);
 
     if (!extended) { // 11 bit standard CAN identifier
         str += to_ascii(value.bvalue[1] & 0x0F);
@@ -31,7 +31,6 @@ void CanIDToString(uint32_t num, string& str, bool extended)
     }
     else { // 29 bit extended CAN identifier
         bool useSpaces = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
-        
         str += to_ascii(value.bvalue[3] >> 4);
         str += to_ascii(value.bvalue[3] & 0x0F);
         if (useSpaces)
@@ -143,5 +142,55 @@ void to_ascii(const uint8_t* bytes, uint32_t length, string& str)
     }
     if (useSpaces && str.length() > 0) {
         str.resize(str.length() - 1); // Truncate the last space
+    }
+}
+
+
+static uint32_t reverse2bytes(uint32_t val) 
+{
+    return (val & 0xFF) << 8 | (val & 0xFF00) >> 8;
+}
+
+static uint32_t reverse4bytes(uint32_t val) 
+{
+    return (val & 0xFF) << 24 | (val & 0xFF00) << 8 
+         | (val & 0xFF0000) >> 8 | (val & 0xFF000000) >> 24;
+}
+
+/**
+ * Parse command for ARCRA, set the mask and filter value 
+ * @param[in] The command line to parse
+ * @param[out] filter CAN filter value
+ * @param[out] mask CAN mask value
+ **/
+void AutoReceiveParse(const string& str, uint32_t& filter_, uint32_t& mask_) 
+{
+    uint32_t filter = 0, mask = 0;
+    
+    for (int i = 0; i < str.length(); i++) {
+        if (str[i] == 'X') {
+            mask   &= 0xFFFFFFF0;
+            filter &= 0xFFFFFFF0;
+        }
+        else {
+            mask &= 0xFFFFFFF0;
+            mask |= 0x0F;
+            filter &= 0xFFFFFFF0;
+            filter |= stoul(str.substr(i, 1), 0, 16);
+        }
+        if (i < str.length() - 1) {
+            mask <<= 4;
+            filter <<= 4;
+        }
+    }
+    if (str.length() == 3) {
+        mask &= 0x7FF;
+        mask_ = reverse2bytes(mask);
+        filter_= reverse2bytes(filter);
+    }
+    else if (str.length() == 8) {
+        mask &= 0x1FFFFFFF;
+        mask_ = reverse4bytes(mask);
+        filter_= reverse4bytes(filter);
     }
 }

@@ -11,7 +11,6 @@
 
 using namespace util;
 
-const int HEADER_SIZE = 3;
 
 class EcumsgISO9141 : public Ecumsg {
     friend class Ecumsg;
@@ -32,6 +31,7 @@ public:
     virtual void addHeaderAndChecksum();
     virtual bool stripHeaderAndChecksum();
     virtual void addChecksum();
+    virtual uint8_t headerLength() const;
 private:    
     EcumsgISO14230(uint32_t size) : Ecumsg(ISO14230, size) {
         const uint8_t header[] = { 0xC0, 0x33, 0xF1 };
@@ -64,7 +64,6 @@ private:
         memcpy(header_, header, sizeof(header));
     }
 };
-
 /**
  * Factory method for adapter protocol messages
  * @param[in] type Message type
@@ -72,7 +71,7 @@ private:
  */
 Ecumsg* Ecumsg::instance(uint8_t type)
 {
-    const uint32_t size = 255;
+    const uint32_t size = 255 + 10;
     Ecumsg* instance = 0;
     switch(type) {
         case ISO9141:
@@ -103,7 +102,7 @@ Ecumsg* Ecumsg::instance(uint8_t type)
  *  @param[in,out] data Data bytes
  *  @param[in,out] length Data length
  */
-static void IsoAddChecksum(uint8_t* data, uint8_t& length)
+static void IsoAddChecksum(uint8_t* data, uint16_t& length)
 {
     uint8_t sum = 0;
     for (int i = 0; i < length; i++) {
@@ -113,60 +112,11 @@ static void IsoAddChecksum(uint8_t* data, uint8_t& length)
 }
 
 /**
- * Strip the header from ISO9141/14230 or J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void StripHeader(uint8_t* data, uint8_t& length)
-{
-    length -= HEADER_SIZE;
-    memmove(&data[0], &data[HEADER_SIZE], length);
-}
-
-/*
- * Add the checksum to J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void J1850AddChecksum(uint8_t* data, uint8_t& length)
-{
-    const uint8_t* ptr = data;
-    int len = length;
-    uint8_t chksum = 0xFF;  // start with all one's
-    
-    while (len--) {
-        int i = 8;
-        uint8_t val = *(ptr++);
-        while (i--) {
-            if (((val ^ chksum) & 0x80) != 0) {
-                chksum ^= 0x0E;
-                chksum = (chksum << 1) | 1;
-            } 
-            else {
-                chksum = chksum << 1;
-            }
-            val = val << 1;
-        }
-    }
-    data[length++] = ~chksum;
-}
-
-/**
- * Strip the checksum from J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void J1850StripChecksum(uint8_t* data, uint8_t& length)
-{
-    length--;
-}
-
-/**
  * Strip the checksum from ISO 9141/1423 message
  * @param[in,out] data Data bytes
  * @param[in,out] length Data length
  */
-static void ISOStripChecksum(uint8_t* data, uint8_t& length)
+static void ISOStripChecksum(uint8_t* data, uint16_t& length)
 {
     length--;
 }
@@ -201,7 +151,7 @@ void Ecumsg::toString(string& str) const
  * @param[in] data Data bytes
  * @param[in] length Data length
  */
-void Ecumsg::setData(const uint8_t* data, uint8_t length)
+void Ecumsg::setData(const uint8_t* data, uint16_t length)
 {
     length_ = length;
     memcpy(data_, data, length);
@@ -238,29 +188,30 @@ void EcumsgISO9141::addChecksum()
 }
 
 /**
- * Strips the header/checksum from ISO 9141 message
- * @return true if header is valid, false otherwise
- */
-bool EcumsgISO9141::stripHeaderAndChecksum()
-{
-    StripHeader(data_, length_);
-    ISOStripChecksum(data_, length_);
-    return true;
-}
-
-/**
  * Adds the header/checksum to ISO 14230 message
  */
 void EcumsgISO14230::addHeaderAndChecksum()
 {
-    // Shift data on 3 bytes to accommodate the header
-    memmove(&data_[HEADER_SIZE], &data_[0], length_);
-    uint8_t len = length_;
-    length_ += HEADER_SIZE;
-    memcpy(&data_[0], header_, HEADER_SIZE);
+    uint8_t headerForm = header_[0] >> 6;  // Table 1, 14230-2
+    int headerSize = (headerForm == 0) ? 1 : 3;
+    if (length_ > 63) 
+        headerSize++;
     
-    // The length is in the 1st byte
-    data_[0] = (data_[0] & 0xC0) | len;
+    uint8_t len = length_; // the message length without header
+    
+    // Shift data on headerSize to accommodate the header
+    memmove(&data_[headerSize], &data_[0], length_);
+    memcpy(data_, header_, headerSize);
+    length_ += headerSize;
+    
+    // Figure out where to store len
+    if (length_ > 63 ) { // separate byte, the last of the header
+        data_[headerSize - 1] = len;
+        data_[0] &= 0xC0;
+    }
+    else { // the length is in the 1st byte, 63 bytes max
+        data_[0] = (data_[0] & 0xC0) | len; 
+    }
     
     IsoAddChecksum(data_, length_);
 }
@@ -274,14 +225,89 @@ void EcumsgISO14230::addChecksum()
 }
 
 /**
+ * Strips the header/checksum from ISO 9141 message
+ * @return true if header is valid, false otherwise
+ */
+bool EcumsgISO9141::stripHeaderAndChecksum()
+{
+    length_ -= HEADER_SIZE;
+    memmove(&data_[0], &data_[HEADER_SIZE], length_);
+    ISOStripChecksum(data_, length_);
+    return true;
+}
+
+uint8_t EcumsgISO14230::headerLength() const
+{
+    uint8_t headerForm = data_[0] >> 6;  // Table 1, 14230-2
+    uint8_t formatLen = data_[0] & 0x3F; 
+    uint8_t headerLen = (headerForm == 0) ? 1 : 3;
+    if (formatLen == 0)
+        headerLen++; // extra lenght byte is present
+    return headerLen;
+}
+
+/**
  * Strips the header/checksum from ISO 14230 message
  * @return true if header is valid, false otherwise
  */
 bool EcumsgISO14230::stripHeaderAndChecksum()
 {
-    StripHeader(data_, length_);
+    uint8_t headerLen = headerLength();
+    
+    length_ -= headerLen;
+    memmove(&data_[0], &data_[headerLen], length_);    
+
     ISOStripChecksum(data_, length_);
     return true;
+}
+
+/**
+ * Strip the header from ISO9141/14230 or J1850 message
+ * @param[in,out] data Data bytes
+ * @param[in,out] length Data length
+ */
+static void StripHeader(uint8_t* data, uint16_t& length)
+{
+    length -= Ecumsg::HEADER_SIZE;
+    memmove(&data[0], &data[Ecumsg::HEADER_SIZE], length);
+}
+
+/*
+ * Add the checksum to J1850 message
+ * @param[in,out] data Data bytes
+ * @param[in,out] length Data length
+ */
+static void J1850AddChecksum(uint8_t* data, uint16_t& length)
+{
+    const uint8_t* ptr = data;
+    int len = length;
+    uint8_t chksum = 0xFF;  // start with all one's
+    
+    while (len--) {
+        int i = 8;
+        uint8_t val = *(ptr++);
+        while (i--) {
+            if (((val ^ chksum) & 0x80) != 0) {
+                chksum ^= 0x0E;
+                chksum = (chksum << 1) | 1;
+            } 
+            else {
+                chksum = chksum << 1;
+            }
+            val = val << 1;
+        }
+    }
+    data[length++] = ~chksum;
+}
+
+/**
+ * Strip the checksum from J1850 message
+ * @param[in,out] data Data bytes
+ * @param[in,out] length Data length
+ */
+static void J1850StripChecksum(uint8_t* data, uint16_t& length)
+{
+    length--;
 }
 
 /**

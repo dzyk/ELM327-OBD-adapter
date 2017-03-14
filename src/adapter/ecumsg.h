@@ -19,19 +19,21 @@ public:
 	const static uint8_t ISO14230 = 2;
 	const static uint8_t PWM      = 3;
 	const static uint8_t VPW      = 4;
+    const static int HEADER_SIZE  = 3;
 	
 	static Ecumsg* instance(uint8_t type);
     virtual ~Ecumsg();
 	const uint8_t* data() const { return data_; }
     uint8_t* data() { return data_; }
 	uint8_t type() const { return type_; }
-	uint8_t length() const { return length_; }
-    void length(uint8_t length) { length_ = length; }
+	uint16_t length() const { return length_; }
+    void length(uint16_t length) { length_ = length; }
 	virtual void addHeaderAndChecksum() = 0;
     virtual void addChecksum() = 0;
 	virtual bool stripHeaderAndChecksum() = 0;
+    virtual uint8_t headerLength() const { return HEADER_SIZE; }
 	Ecumsg& operator+=(uint8_t byte) { data_[length_++] = byte; return *this; }
-	void setData(const uint8_t* data, uint8_t length);
+	void setData(const uint8_t* data, uint16_t length);
 	void toString(util::string& str) const;
 protected:
 	Ecumsg(uint8_t type, uint32_t size);
@@ -39,8 +41,8 @@ protected:
 	
 	uint8_t* data_;
 	uint8_t type_;
-    uint8_t length_;
-	uint8_t size_;
+    uint16_t length_; // message length
+	uint32_t size_;   // number of bytes to store the message
 	uint8_t header_[3];
 };
 

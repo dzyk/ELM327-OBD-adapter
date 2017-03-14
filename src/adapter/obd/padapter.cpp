@@ -49,6 +49,12 @@ ProtocolAdapter* ProtocolAdapter::getAdapter(int adapterType)
     }
 }
 
+void ProtocolAdapter::clearHistory()
+{
+    historyPos_ = 0;
+    memset(history_, 0, sizeof(history_));
+}
+
 /**
  * Start the new history trail
  * @param[in] msg Message to insert
@@ -71,9 +77,13 @@ void ProtocolAdapter::appendToHistory(const Ecumsg* msg)
 
     if ((historyPos_ + ITEM_LEN) > sizeof(history_)) {
         historyPos_ = 0; // Reset position
+        memset(history_, 0, sizeof(history_));
     }
-    history_[historyPos_++] = msg->length();
-    memcpy(&history_[historyPos_], msg->data(), msg->length());
+    
+    int len = (msg->length() > (ITEM_LEN - 1)) ? (ITEM_LEN - 1) : msg->length(); // use only up to 15 bytes
+    
+    history_[historyPos_++] = len;
+    memcpy(&history_[historyPos_], msg->data(), len);
     historyPos_ += (ITEM_LEN - 1);
 }
 

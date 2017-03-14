@@ -26,6 +26,7 @@ public:
     int getProtocol() const;
     void wiringCheck();
     int kwDisplay();
+    void setFilterAndMask();
 private:
     bool sendLengthCheck(const uint8_t* msg, int len);
     int onRequestImpl(const util::string& cmdString);

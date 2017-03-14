@@ -23,7 +23,7 @@ static const uint8_t Iso14230Wakeup[] = { 0x3E };
 
 #define __BELLS_AND_WHISTLES__
 #ifdef __BELLS_AND_WHISTLES__
-static const char BusInit[] = "BUSINIT: ";
+static const char BusInit[] = "BUS INIT: ";
 static const char EchoDot[] = ".";
 static const char EchoOk[]  = "OK";
 #endif
@@ -69,15 +69,19 @@ void IsoSerialAdapter::checkP3Timeout()
  */
 void IsoSerialAdapter::setKeepAlive() 
 {
-    if (wakeupTime_) { // If keepalive enabled?
-        keepAliveTimer_->start(wakeupTime_);
+    uint32_t wakeupTime = getWakeupTime();
+    
+    if (wakeupTime) { // If keepalive enabled?
+        keepAliveTimer_->start(wakeupTime);
     }
     p3Timer_->start(P3_MIN_TIMEOUT);
 }
 
 bool IsoSerialAdapter::isKeepAlive()
 {
-    return connected_ && wakeupTime_ && keepAliveTimer_->isExpired();
+    uint32_t wakeupTime = getWakeupTime();
+    
+    return connected_ && wakeupTime && keepAliveTimer_->isExpired();
 }
     
 /**
@@ -134,7 +138,7 @@ void IsoSerialAdapter::setProtocol(int protocol)
  */
 bool IsoSerialAdapter::sendToEcu(const Ecumsg* msg, int p4Timeout)
 {
-    insertToHistory(msg); // Buffer dump
+    appendToHistory(msg); // Buffer dump
     
     TX_LED(1); // Turn the transmit LED on
 
@@ -147,8 +151,9 @@ bool IsoSerialAdapter::sendToEcu(const Ecumsg* msg, int p4Timeout)
             return false;
         }    
         // Interbyte delay <P4 = [5-20ms]>
-        if (i > 0)
+        if (i < (msg->length() - 1)) {
             Delay1ms(p4Timeout);
+        } 
     } 
 
     TX_LED(0); // Turn the transmit LED off
@@ -173,9 +178,6 @@ void IsoSerialAdapter::receiveFromEcu(Ecumsg* msg, int maxLen, int p2Timeout, in
     
     int i = 0;
     for(; i < maxLen; i++) { // Only retrieve maxLen bytes
-        // Do we have Rx overrun issue?
-        uart_->clear();
-        
         // Wait for data to be received
         while(!uart_->ready()) {
             if (timer->isExpired())
@@ -228,51 +230,6 @@ bool IsoSerialAdapter::ecuSlowInit()
     
     // Enable USART
     uart_->setBitBang(false);
-    
-    // Do we have Rx overrun issue?
-    uart_->clear();
-    
-    // Clear Rx FIFO
-    uart_->clearRxFifo();
-
-    return sts;
-}
-
-/**
- * Performs fast ISO14230 init
- * @return true if OK, false if wiring error
- */
-bool IsoSerialAdapter::ecuFastInit()
-{
-    const int TWuP_INTERVAL = 25; // 25ms
-    bool sts = true;
-   
-    TX_LED(1); // Turn the transmit LED on
-
-    // Disable USART
-    uart_->setBitBang(true);
-
-    uart_->setBit(0);
-    Delay1ms(TWuP_INTERVAL);
-
-    uart_->setBit(1);
-    Delay1ms(TWuP_INTERVAL);
-    
-    TX_LED(0); // Turn the transmit LED off
-
-    // Get the feedback status
-    if (!uart_->getBit()) {
-        sts = false;   // Wiring error, no +12V power?
-    }
-    
-    // Enable USART
-    uart_->setBitBang(false);
-    
-    // Do we have overrun issue?
-    uart_->clear();
-    
-    // Clear Rx FIFO
-    uart_->clearRxFifo();
     
     return sts;
 }
@@ -390,6 +347,39 @@ int IsoSerialAdapter::onConnectEcuSlow(int protocol)
 }
 
 /**
+ * Performs fast ISO14230 init
+ * @return true if OK, false if wiring error
+ */
+bool IsoSerialAdapter::ecuFastInit()
+{
+    const int TWuP_INTERVAL = 25; // 25ms
+    bool sts = true;
+   
+    TX_LED(1); // Turn the transmit LED on
+
+    // Disable USART
+    uart_->setBitBang(true);
+
+    uart_->setBit(0);
+    Delay1ms(TWuP_INTERVAL);
+
+    uart_->setBit(1);
+    Delay1ms(TWuP_INTERVAL);
+    
+    TX_LED(0); // Turn the transmit LED off
+
+    // Get the feedback status
+    if (!uart_->getBit()) {
+        sts = false;   // Wiring error, no +12V power?
+    }
+    
+    // Enable USART
+    uart_->setBitBang(false);
+    
+    return sts;
+}
+
+/**
  * Connect to Ecu using fast init protocol (ISO14230)
  * @param[in] protocol The protocol number
  * @return The connection status
@@ -415,6 +405,8 @@ int IsoSerialAdapter::onConnectEcuFast(int protocol)
 
     msg->setData(Iso14230Seq, sizeof(Iso14230Seq));
     msg->addHeaderAndChecksum();
+    
+    uart_->clear(); // clear error flags
     if (!sendToEcu(msg.get(), P4_TIMEOUT))
         return REPLY_WIRING_ERROR;
 
@@ -486,8 +478,10 @@ void IsoSerialAdapter::sendHeartBeat()
     uint8_t msgtype = (protocol_ == PROT_ISO14230) ?  Ecumsg::ISO14230 : Ecumsg::ISO9141;
     unique_ptr<Ecumsg> msg(Ecumsg::instance(msgtype));
     
-    if (customWkpMsg_[0]) { // Use custom wakeup seq
-        msg->setData(customWkpMsg_ + 1, customWkpMsg_[0]);
+    const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
+    
+    if (bytes->length) { // Use custom wakeup seq
+        msg->setData(bytes->data, bytes->length);
         msg->addChecksum();
     }
     else {
@@ -500,29 +494,38 @@ void IsoSerialAdapter::sendHeartBeat()
         msg->addHeaderAndChecksum();
     }
 
-    int numReplies = 0;
+    uart_->clear(); // clear error flags
     if (!sendToEcu(msg.get(), P4_TIMEOUT)) {
-        close(); // Beat failed
-        return;
+        setKeepAlive(); 
+        return; // Beat failed, K line is busy
     }
 
     // Wait for multiply replies
     for (int i = 0; ; i++) {            
-        receiveFromEcu(msg.get(), OBD_IN_MSG_LEN, p2Timeout, P1_MAX_TIMEOUT);
-        if (msg->length() > 0) {
-            numReplies++;
-        }
-        else { // Timeout
-            break;
+        receiveFromEcu(msg.get(), OBD_OUT_MSG_LEN, p2Timeout, P1_MAX_TIMEOUT);
+        if (msg->length() == 0) {
+            break; // Timeout
         }
     }         
     
-    if (numReplies == 0) {
-        close(); // Beat failed
-    }
-    else {
         setKeepAlive(); // Start measuring P3 timeout again
     }
+
+/**
+ * ISO14230 Timing Exceptions handler, requestCorrectlyReceived-ResponsePending
+ * @param[in] msg Ecumsg instance
+ * @return true if timeout exception, false otherwise
+ */
+bool IsoSerialAdapter::checkResponsePending(const Ecumsg* msg)
+{
+    if (msg->type() == Ecumsg::ISO14230) {
+        uint8_t idx = msg->headerLength();
+        // Looking for 7F.XX.78
+        if (msg->data()[idx] == 0x7F && msg->data()[idx + 2] == 0x78) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -533,10 +536,12 @@ void IsoSerialAdapter::sendHeartBeat()
  */
 int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
 { 
+    const int MAX_PEND_RESP_NUM = 100;
+    int pendRespCounter = 0;
     bool reply = false;
-    const int p2Timeout = getP2MaxTimeout();
+    int p2Timeout = getP2MaxTimeout();
     const int maxLen = get2MaxLen();
-    util::string str(OBD_IN_MSG_LEN);
+    util::string str(TX_BUFFER_LEN);
     
     uint8_t msgtype = (protocol_ == PROT_ISO14230) ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
     unique_ptr<Ecumsg> msg(Ecumsg::instance(msgtype));
@@ -547,6 +552,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
     // Ready to send it.. but how about P3 timeout?
     checkP3Timeout();
     
+    uart_->clear(); // clear error flags
     if (!sendToEcu(msg.get(), P4_TIMEOUT)) {
         return REPLY_WIRING_ERROR;
     }
@@ -559,6 +565,14 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
         if (msg->length() < 5)
             return REPLY_DATA_ERROR;
             
+        if (!checkResponsePending(msg.get()) || pendRespCounter > MAX_PEND_RESP_NUM) {
+            p2Timeout = getP2MaxTimeout();
+        }
+        else {
+            p2Timeout = P2_MAX_TIMEOUT_S;
+            pendRespCounter++;
+        }
+            
         reply = true; // Mark that we have received reply
         
         // Strip the message header/checksum if option "Send Header" is not set
@@ -570,7 +584,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
         }
 
         msg->toString(str);
-        AdptSendReply(str); 
+        AdptSendReply2(str); 
         str.resize(0);
     }
 
@@ -726,7 +740,7 @@ ext:
 int IsoSerialAdapter::getP2MaxTimeout() const
 {
     int p2Timeout = config_->getIntProperty(PAR_TIMEOUT); 
-    return p2Timeout ? p2Timeout : P2_MAX_TIMEOUT;
+    return p2Timeout ? (p2Timeout * 4) : P2_MAX_TIMEOUT;
 }
 
 /**
@@ -744,19 +758,12 @@ void IsoSerialAdapter::configureProperties()
     // KW 1/0
     kwCheck_ = config_->getBoolProperty(PAR_KW_CHECK);
     
-    // WM
-    const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
-    customWkpMsg_[0] = 0;
-    if (bytes->length) {
-        customWkpMsg_[0] = bytes->length;
-        memcpy(customWkpMsg_ + 1, bytes->data, bytes->length);
-    }
-    
     // IIA
     uint32_t initByte = config_->getIntProperty(PAR_ISO_INIT_ADDRESS);
-    isoInitByte_ = initByte ? initByte : 0x33;
-    
-    // SW
-    uint32_t wakeupTime = config_->getIntProperty(PAR_WAKEUP_VAL);
-    wakeupTime_ = wakeupTime ? (wakeupTime * 20) : DEFAULT_WAKEUP_TIME;
+    isoInitByte_ = initByte ? initByte : 0x33;    
+}
+
+uint32_t IsoSerialAdapter::getWakeupTime() const
+{
+    return config_->getIntProperty(PAR_WAKEUP_VAL) * 20;
 }

@@ -39,7 +39,7 @@ static string UIDToString(uint32_t uid[3])
     string str(30);
 
     for (int j = 0; j < 3; j++) {
-        NumericType value(uid[j]);
+        IntAggregate value(uid[j]);
 
         for (int i = 3; i >= 0; i--) {
             str += to_ascii(value.bvalue[i] >> 4);

@@ -16,7 +16,11 @@
 
 const int TX_LED_PORT =  0;
 const int RX_LED_PORT =  0;
-const int TX_LED_NUM  = 12;
+#ifdef TX_LED_ON_P012
+  const int TX_LED_NUM  = 12;
+#else
+  const int TX_LED_NUM  = 13;
+#endif
 const int RX_LED_NUM  = 11;
 
 #endif //__ADAPTER_DEFS_H__

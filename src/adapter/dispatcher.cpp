@@ -8,10 +8,12 @@
 #include <climits>
 #include <cstdio>
 #include <adaptertypes.h>
+#include <obd/j1979.h>
 #include "obd/obdprofile.h"
 #include <algorithms.h>
 #include <CmdUart.h>
 #include <AdcDriver.h>
+#include <obd/isocan.h>
 
 using namespace util;
 
@@ -20,7 +22,7 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.08";
+static const char Version    [] = "1.10";
 static const char Interface  [] = "ELM327 v2.1";
 static const char Copyright  [] = "Copyright (c) 2009-2017 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
@@ -67,39 +69,16 @@ static void OnSetValueInt(const string& cmd, int par)
 }
 
 /**
- * Reset the int property to 0
- * @param[in] cmd Command line
+ * Reset the byte sequence property to empty
+ * @param[in] cmd Command line, ignored
  * @param[in] par The number in dispatch table
  */
-static void OnResetValueInt(const string& cmd, int par)
+static void OnResetBytes(const string& cmd, int par)
 {
-    AdapterConfig::instance()->setIntProperty(par, 0);
-    AdptSendReply(OkMessage);
-}
-
-/**
- * Store the CAN 11bit header
- * @param[in] cmd Command line
- * @param[in] par The number in dispatch table
- */
-static void OnSetCanHeader(const string& cmd, int par)
-{
-    string cmdData = cmd;
-    bool sts = false;
     ByteArray bytes;
-    
-    if (cmdData.length() == 3) {
-        cmdData = "0" + cmdData; //1.5 bytes
-        sts = to_bytes(cmdData, bytes.data);
-        if (sts) {
-            bytes.length = cmdData.length() / 2;
-            AdapterConfig::instance()->setBytesProperty(par, &bytes);
-            AdptSendReply(OkMessage);
-        }
-    }
-    else {
-        AdptSendReply(ErrMessage);
-    }
+
+    AdapterConfig::instance()->setBytesProperty(par, &bytes);
+    AdptSendReply(OkMessage);
 }
 
 /**
@@ -112,6 +91,9 @@ static void OnSetBytes(const string& cmd, int par)
     string cmdData = cmd;
     ByteArray bytes;
     
+    if (cmdData.length() == 3) {
+        cmdData = "0" + cmdData; //1.5 bytes
+    }
     bool sts = to_bytes(cmdData, bytes.data);
     
     if (sts) {
@@ -134,8 +116,97 @@ static void OnSetOK(const string& cmd, int par)
     AdptSendReply(OkMessage);
 }
 
+/**
+ * Just a stub
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
 static void OnCanShowStatus(const string& cmd, int par)
 {
+}
+
+/**
+ * Set CAN receive address
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnCanSetReceiveAddress(const string& cmd, int par)
+{
+    ByteArray bytes;
+    
+    AdapterConfig* config = AdapterConfig::instance();
+    
+    if (cmd.length() == 0) {
+        config->setBytesProperty(PAR_CAN_FILTER, &bytes);
+        config->setBytesProperty(PAR_CAN_MASK, &bytes);
+    }
+    else if (cmd.length() == 3 || cmd.length() == 8) {
+        IntAggregate mask, filter;
+        AutoReceiveParse(cmd, filter.lvalue, mask.lvalue);
+        bytes.length = 2;
+        memcpy(bytes.data, filter.bvalue, 4);
+        config->setBytesProperty(PAR_CAN_FILTER, &bytes);
+        memcpy(bytes.data, mask.bvalue, 4);
+        config->setBytesProperty(PAR_CAN_MASK, &bytes);
+    }
+    else {
+        AdptSendReply(ErrMessage);
+        return;
+    }
+    
+    OBDProfile::instance()->setFilterAndMask();
+    AdptSendReply(OkMessage);
+}
+
+/**
+ * Set CAN flow control mode [0..2]
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table
+ */
+static void OnCanSetFlowControlMode(const string& cmd, int par)
+{
+    AdapterConfig* config = AdapterConfig::instance();
+    const ByteArray* hdr = config->getBytesProperty(PAR_CAN_FLOW_CTRL_HDR);
+    const ByteArray* bytes = config->getBytesProperty(PAR_CAN_FLOW_CTRL_DAT);
+
+    switch (stoul(cmd, 0, 16)) {
+        case 0:
+            config->setIntProperty(PAR_CAN_FLOW_CTRL_MD, 0);
+            AdptSendReply(OkMessage);
+            break;
+
+        case 1:
+            if (hdr->length && bytes->length) {
+                config->setIntProperty(PAR_CAN_FLOW_CTRL_MD, 1);
+                AdptSendReply(OkMessage);
+            }
+            else
+                AdptSendReply(ErrMessage);
+            break;
+
+        case 2:
+            if (bytes->length) {
+                config->setIntProperty(PAR_CAN_FLOW_CTRL_MD, 2);
+                AdptSendReply(OkMessage);
+            }
+            else
+                AdptSendReply(ErrMessage);
+            break;
+
+        default:
+            AdptSendReply(ErrMessage);
+    }
+}
+
+/**
+ * Set CAN filter/mask bytes, and refresh the driver if its CAN currenly
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table
+ */
+static void OnCanSetFilterAndMask(const string& cmd, int par)
+{
+    OnSetBytes(cmd, par);
+    OBDProfile::instance()->setFilterAndMask();
 }
 
 /**
@@ -257,6 +328,7 @@ static void OnSetRcvAddress(const string& cmd, int par)
 static void OnProtocolClose(const string& cmd, int par)
 {
     OBDProfile::instance()->closeProtocol();
+    AdptSendReply(OkMessage);
 }
 
 /**
@@ -277,7 +349,7 @@ static void OnReadVoltage(const string& cmd, int par)
     int valFraction = (val % 100) / 10;
     
     char out[10];
-    sprintf(out, "%2d.%1dV", valInt, valFraction);
+    sprintf(out, "%d.%1dV", valInt, valFraction);
     AdptSendReply(out);
 }
 
@@ -289,14 +361,16 @@ static void OnReadVoltage(const string& cmd, int par)
 static void OnSetProtocol(const string& cmd, int par)
 {
     bool useAutoSP = false;
-    uint8_t protocol = 0;
+    uint32_t protocol = 0;
 
-    if (cmd[0] == 'A' && cmd.length() == 2) {
-        protocol = cmd[1] - '0';
+    if (cmd[0] == 'A' && cmd.length() == 2 && cmd[1] != 'B') {
+        //protocol = cmd[1] - '0';
+        protocol = stoul(cmd.substr(1, 2), 0, 16);
         useAutoSP = true;
     }
     else if (cmd.length() == 1) {
-        protocol = cmd[0] - '0';
+        //protocol = cmd[0] - '0';
+        protocol = stoul(cmd.substr(0, 2), 0, 16);
         useAutoSP = false;
     }
     else {
@@ -305,9 +379,16 @@ static void OnSetProtocol(const string& cmd, int par)
     }
     
     AdapterConfig::instance()->setBoolProperty(PAR_USE_AUTO_SP, useAutoSP);
-    OBDProfile::instance()->setProtocol(protocol, true);
+    if (OBDProfile::instance()->setProtocol(protocol, true) == REPLY_OK) {
+        AdapterConfig::instance()->setIntProperty(PAR_PROTOCOL, protocol);
     AdptSendReply(OkMessage);
 }
+    else {
+        AdapterConfig::instance()->setBoolProperty(PAR_USE_AUTO_SP, false);
+        AdptSendReply(ErrMessage);
+    }
+}
+
 
 /**
  * Set adapter default parameters
@@ -321,8 +402,14 @@ static void SetDefault()
     config->setBoolProperty(PAR_LINEFEED, true);
     config->setBoolProperty(PAR_ECHO, true);
     config->setBoolProperty(PAR_SPACES, true);
+    config->setBoolProperty(PAR_USE_AUTO_SP, false);
+    config->setBoolProperty(PAR_KW_CHECK, false);
+    config->setBoolProperty(PAR_CAN_DLC, false);
+    config->setBoolProperty(PAR_CAN_FLOW_CONTROL, true);
     config->setBoolProperty(PAR_AUTO_RECEIVE, true);
     config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
+    config->setIntProperty(PAR_WAKEUP_VAL, (DEFAULT_WAKEUP_TIME / 20));
+    config->setIntProperty(PAR_CAN_TSTR_ADDRESS, TESTER_ADDRESS);
 }
 
 /**
@@ -345,6 +432,7 @@ static void OnReset(const string& cmd, int par)
 {
     OBDProfile::instance()->closeProtocol();
     SetDefault();
+    ProtocolAdapter::clearHistory();
     AdptSendReply(Interface);
 }
 
@@ -365,27 +453,27 @@ static const DispatchType dispatchTbl[] = {
     { "@1",   PAR_VERSION,           0,  0, OnSendReplyVersion     },
     { "AL",   PAR_ALLOW_LONG,        0,  0, OnSetValueTrue         },
     { "AR",   PAR_AUTO_RECEIVE,      0,  0, OnSetValueTrue         },
-    { "AT0",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
-    { "AT1",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
-    { "AT2",  PAR_ADAPTIVE_TIMING,   0,  0, OnSetOK                },
+    { "AT0",  PAR_ADPTV_TIM0,        0,  0, OnSetOK                },
+    { "AT1",  PAR_ADPTV_TIM1,        0,  0, OnSetOK                },
+    { "AT2",  PAR_ADPTV_TIM2,        0,  0, OnSetOK                },
     { "BD",   PAR_BUFFER_DUMP,       0,  0, OnBufferDump           },
     { "BI",   PAR_BYPASS_INIT,       0,  0, OnSetValueTrue         },
     { "BRD",  PAR_TRY_BRD,           2,  2, OnSetValueInt          },
     { "BRT",  PAR_SET_BRD,           2,  2, OnSetValueInt          },
     { "CAF0", PAR_CAN_CAF,           0,  0, OnSetValueFalse        },
     { "CAF1", PAR_CAN_CAF,           0,  0, OnSetValueTrue         },
-    { "CEA",  PAR_CAN_EXT,           0,  0, OnResetValueInt        },
-    { "CEA",  PAR_CAN_EXT,           2,  2, OnSetValueInt          },
-    { "CF",   PAR_CAN_CF,            3,  3, OnSetValueInt          },
-    { "CF",   PAR_CAN_CF,            8,  8, OnSetValueInt          },
+    { "CEA",  PAR_CAN_EXT,           0,  0, OnResetBytes           },
+    { "CEA",  PAR_CAN_EXT,           2,  2, OnSetBytes             },
+    { "CF",   PAR_CAN_FILTER,        3,  3, OnCanSetFilterAndMask  },
+    { "CF",   PAR_CAN_FILTER,        8,  8, OnCanSetFilterAndMask  },
     { "CFC0", PAR_CAN_FLOW_CONTROL,  0,  0, OnSetValueFalse        },
     { "CFC1", PAR_CAN_FLOW_CONTROL,  0,  0, OnSetValueTrue         },
-    { "CM",   PAR_CAN_CM,            3,  3, OnSetValueInt          },
-    { "CM",   PAR_CAN_CM,            8,  8, OnSetValueInt          },
-    { "CP",   PAR_CAN_CP,            2,  2, OnSetValueInt          },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   0,  0, OnResetValueInt        },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   3,  3, OnSetValueInt          },
-    { "CRA",  PAR_CAN_SET_ADDRESS,   8,  8, OnSetValueInt          },
+    { "CM",   PAR_CAN_MASK,          3,  3, OnCanSetFilterAndMask  },
+    { "CM",   PAR_CAN_MASK,          8,  8, OnCanSetFilterAndMask  },
+    { "CP",   PAR_CAN_PRIORITY_BITS, 2,  2, OnSetBytes             },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   0,  0, OnCanSetReceiveAddress },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   3,  3, OnCanSetReceiveAddress },
+    { "CRA",  PAR_CAN_SET_ADDRESS,   8,  8, OnCanSetReceiveAddress },
     { "CS",   PAR_CAN_SHOW_STATUS,   0,  0, OnCanShowStatus        },
     { "CSM0", PAR_CAN_MONITORING,    0,  0, OnSetValueFalse        },
     { "CSM1", PAR_CAN_MONITORING,    0,  0, OnSetValueTrue         },
@@ -399,9 +487,9 @@ static const DispatchType dispatchTbl[] = {
     { "E0",   PAR_ECHO,              0,  0, OnSetValueFalse        },
     { "E1",   PAR_ECHO,              0,  0, OnSetValueTrue         },
     { "FCSD", PAR_CAN_FLOW_CTRL_DAT, 2, 10, OnSetBytes             },
-    { "FCSM", PAR_CAN_FLOW_CONTROL,  1,  1, OnSetValueInt          },
-    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3,  3, OnSetValueInt          },
-    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8,  8, OnSetValueInt          },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 3,  3, OnSetBytes             },
+    { "FCSH", PAR_CAN_FLOW_CTRL_HDR, 8,  8, OnSetBytes             },
+    { "FCSM", PAR_CAN_FLOW_CTRL_MD,  1,  1, OnCanSetFlowControlMode},
     { "FE",   PAR_FORGET_EVENTS,     0,  0, OnSetOK                },
     { "FI",   PAR_FAST_INIT,         0,  0, OnSetOK                },
     { "H0",   PAR_HEADER_SHOW,       0,  0, OnSetValueFalse        },
@@ -427,7 +515,8 @@ static const DispatchType dispatchTbl[] = {
     { "M0",   PAR_MEMORY,            0,  0, OnSetValueFalse        },
     { "M1",   PAR_MEMORY,            0,  0, OnSetValueTrue         },
     { "MP",   PAR_J1939_MONITOR,     4,  7, OnJ1939Monitor         },
-    { "NL",   PAR_ALLOW_LONG,        0,  0, OnSetValueFalse        },
+    { "NL",   PAR_ALLOW_LONG,        0,  0, OnSetValueTrue         },
+    { "PB",   PAR_USER_B,            4,  4, OnSetBytes             },
     { "PC",   PAR_PROTOCOL_CLOSE,    0,  0, OnProtocolClose        },
     { "R0",   PAR_RESPONSES,         0,  0, OnSetValueFalse        },
     { "R1",   PAR_RESPONSES,         0,  0, OnSetValueTrue         },
@@ -436,7 +525,7 @@ static const DispatchType dispatchTbl[] = {
     { "RV",   PAR_READ_VOLT,         0,  0, OnReadVoltage          },
     { "S0",   PAR_SPACES,            0,  0, OnSetValueFalse        },
     { "S1",   PAR_SPACES,            0,  0, OnSetValueTrue         },
-    { "SH",   PAR_HEADER_BYTES,      3,  3, OnSetCanHeader         },
+    { "SH",   PAR_HEADER_BYTES,      3,  3, OnSetBytes             },
     { "SH",   PAR_HEADER_BYTES,      6,  6, OnSetBytes             },
     { "SI",   PAR_SLOW_INIT,         0,  0, OnSetOK                },
     { "SP",   PAR_PROTOCOL,          1,  2, OnSetProtocol          },
@@ -465,20 +554,19 @@ static bool ValidateArgLength(const DispatchType& entry, const string& arg)
  * @param[in] cmdString Command line
  * @return true if command was dispatched, false otherwise
  */
-static bool DispatchATCmd(const string& cmdString, int numOfChar, int type)
+static bool DispatchATCmd(const string& cmdString, int numOfChar, bool extraPar)
 {
      // Ignore first two "AT" chars
-    string atcmd = (type == 0) ? cmdString.substr(2) : cmdString.substr(2, numOfChar); 
-    string arg;
-    if (type == 1 && (cmdString.length() > (numOfChar + 2)))
-        arg = cmdString.substr(numOfChar + 2);
+    string atcmd = extraPar ? cmdString.substr(2, numOfChar) : cmdString.substr(2);
 
     for (int i = 0; i < sizeof(dispatchTbl)/sizeof(dispatchTbl[0]); i++) {
-        int cmdType = (dispatchTbl[i].minParNum > 0) ? 1 : 0;
+        bool cmdType = dispatchTbl[i].minParNum > 0;
         
-        if ((cmdType == type) && (atcmd == dispatchTbl[i].name)) {
-            // Argument length validation if we have argument
-            if (type && !ValidateArgLength(dispatchTbl[i], arg)) {
+        if ((cmdType == extraPar) && (atcmd == dispatchTbl[i].name)) {
+            string arg = extraPar ? cmdString.substr(numOfChar + 2) : "";
+
+            // Argument length validation if we have an argument
+            if (extraPar && !ValidateArgLength(dispatchTbl[i], arg)) {
                 continue;
             }
             
@@ -500,16 +588,16 @@ static bool DispatchATCmd(const string& cmdString, int numOfChar, int type)
  */
 static bool ParseGenericATCmd(const string& cmdString)
 {
-    bool dispatched = DispatchATCmd(cmdString, 4, 0); // Do exact string match, like "AT#DP"
+    bool dispatched = DispatchATCmd(cmdString, 4, false); // Do exact string match, like "AT#DP"
     if (dispatched)
         return true;
-    dispatched = DispatchATCmd(cmdString, 4, 1); // Four char sequence prefixes
+    dispatched = DispatchATCmd(cmdString, 4, true); // Four char sequence prefixes
     if (dispatched)
         return true;
-    dispatched = DispatchATCmd(cmdString, 3, 1); // Three char sequence prefixes
+    dispatched = DispatchATCmd(cmdString, 3, true); // Three char sequence prefixes
     if (dispatched)
         return true;
-    return DispatchATCmd(cmdString, 2, 1); // Two char sequence prefixes
+    return DispatchATCmd(cmdString, 2, true); // Two char sequence prefixes
 }
 
 /**
@@ -518,7 +606,7 @@ static bool ParseGenericATCmd(const string& cmdString)
  */
 void AdptOnCmd(string& cmdString)
 {
-    static string PreviousCmd(USER_BUF_LEN);
+    static string PreviousCmd(RX_BUFFER_LEN);
     bool succeeded = false;
     
     // Compress and convert to uppercase 
@@ -574,6 +662,22 @@ void AdptCheckHeartBeat()
 void AdptSendReply(const string& str)
 {
     string s = str;
+    if (AdapterConfig::instance()->getBoolProperty(PAR_LINEFEED)) {
+        s += "\r\n";
+        AdptSendString(s);
+    }
+    else {
+        s += "\r";
+        AdptSendString(s);
+    }
+}
+
+/**
+ * Send out string with <CR><LF>, do not a allocate additional string
+ * @param[in] str String to send
+ */
+void AdptSendReply2(string& s)
+{
     if (AdapterConfig::instance()->getBoolProperty(PAR_LINEFEED)) {
         s += "\r\n";
         AdptSendString(s);

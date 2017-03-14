@@ -8,6 +8,9 @@
 #ifndef __J1979_DEFINES_H__
 #define __J1979_DEFINES_H__
 
+#include <cstdint>
+
+using namespace std;
 
 // SAE J1979 timeoutS definition
 
@@ -22,7 +25,10 @@ enum IsoTimeouts {
     W4_TIMEOUT         =  33,
     P4_TIMEOUT         =  7,
     KEEP_ALIVE_MAX_NUM =  5, // Disconnect after 5 failed,
-    DEFAULT_WAKEUP_TIME = 3000
+    DEFAULT_WAKEUP_TIME =  3000,
+    P2_MAX_TIMEOUT_S    =  5000 // P2* timeout
 };
+
+const uint8_t TESTER_ADDRESS = 0xF1;
 
 #endif //__J1979_DEFINES_H__

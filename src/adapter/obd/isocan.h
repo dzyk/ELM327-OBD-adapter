@@ -7,7 +7,6 @@
 
 #include "padapter.h"
 
-const int CAN_P2_MAX_TIMEOUT = 50;
 
 class CanDriver;
 class CanHistory;
@@ -22,32 +21,25 @@ public:
 public:
     virtual int onRequest(const uint8_t* data, int len);
     virtual int onConnectEcu(bool sendReply);
-    virtual void setFilter(const uint8_t* filter);
-    virtual void setMask(const uint8_t* mask);
     virtual void setCanCAF(bool val) {}
-    virtual void setPriorityByte(uint8_t val) { canPriority_ = val; }
     virtual void wiringCheck();
     virtual void dumpBuffer();
 protected:
     IsoCanAdapter();
     virtual uint32_t getID() const = 0;
-    virtual void setFilterAndMask() = 0;
     virtual void processFlowFrame(const CanMsgBuffer* msgBuffer) = 0;
     bool sendToEcu(const uint8_t* data, int len);
-    bool sendToEcuSF(const uint8_t* data,  uint8_t firstByte, int len);
+    bool sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc);
     bool receiveFromEcu(bool sendReply);
-    bool isCustomMask() const { return mask_[0] != 0; }
-    bool isCustomFilter() const { return filter_[0] != 0; }
+    bool checkResponsePending(const CanMsgBuffer* msg, bool canExt);
     void processFrame(const CanMsgBuffer* msg);
     void formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str);
+    bool receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin);
     int getP2MaxTimeout() const;
-    //
+protected:
     CanDriver*  driver_;
     CanHistory* history_;
     bool        extended_;
-    uint8_t     canPriority_;
-    uint8_t     filter_[5];    // 4 bytes + length
-    uint8_t     mask_[5];      // 4 bytes + length
 };
 
 class IsoCan11Adapter : public IsoCanAdapter {
@@ -58,9 +50,9 @@ public:
     virtual uint32_t getID() const;
     virtual void setFilterAndMask();
     virtual void processFlowFrame(const CanMsgBuffer* msgBuffer);
-    virtual int getProtocol() const { return PROT_ISO15765_1150; }
+    virtual int getProtocol() const;
     virtual void open();
-private:
+    static void setReceiveAddress(const util::string& par);
 };
 
 class IsoCan29Adapter : public IsoCanAdapter {
@@ -73,7 +65,7 @@ public:
     virtual void processFlowFrame(const CanMsgBuffer* msgBuffer);
     virtual int getProtocol() const { return PROT_ISO15765_2950; }
     virtual void open();
-private:
+    static void setReceiveAddress(const util::string& par);
 };
 
 #endif //__ISO_CAN_H__
