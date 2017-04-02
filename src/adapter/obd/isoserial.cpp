@@ -389,6 +389,7 @@ int IsoSerialAdapter::onConnectEcuFast(int protocol)
     uint8_t kb1;
     int sts = REPLY_ERROR;
     const int p2Timeout = getP2MaxTimeout();
+    const int maxLen = get2MaxLen();
     unique_ptr<Ecumsg> msg(Ecumsg::instance(Ecumsg::ISO14230));
 
     connected_ = false;
@@ -411,8 +412,7 @@ int IsoSerialAdapter::onConnectEcuFast(int protocol)
         return REPLY_WIRING_ERROR;
 
     for (;;) {
-        // maxlen -> (3hdr bytes + 3data bytes + checksum) => 7
-        receiveFromEcu(msg.get(), 7, p2Timeout, P1_MAX_TIMEOUT); 
+        receiveFromEcu(msg.get(), maxLen, p2Timeout, P1_MAX_TIMEOUT);
         if (msg->length() == 0)
             break;
         if (connected_)

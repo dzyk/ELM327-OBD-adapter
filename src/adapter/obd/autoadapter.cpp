@@ -14,7 +14,9 @@ void AutoAdapter::getDescription()
 
 void AutoAdapter::getDescriptionNum()
 {
-    AdptSendReply("0");
+    bool useAutoSP = config_->getBoolProperty(PAR_USE_AUTO_SP);
+    const char* reply = useAutoSP ? "A0" : "0";
+    AdptSendReply(reply);
 }
 
 int AutoAdapter::onRequest(const uint8_t* data, int len)

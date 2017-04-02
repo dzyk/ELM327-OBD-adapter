@@ -31,15 +31,18 @@ protected:
     bool sendToEcu(const uint8_t* data, int len);
     bool sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc);
     bool receiveFromEcu(bool sendReply);
-    bool checkResponsePending(const CanMsgBuffer* msg, bool canExt);
+    bool checkResponsePending(const CanMsgBuffer* msg);
     void processFrame(const CanMsgBuffer* msg);
-    void formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str);
+    void processFirstFrame(const CanMsgBuffer* msg);
+    void processNextFrame(const CanMsgBuffer* msg, int n);
+    void formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str, int dlen);
     bool receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin);
     int getP2MaxTimeout() const;
 protected:
     CanDriver*  driver_;
     CanHistory* history_;
     bool        extended_;
+    bool        canExtAddr_;
 };
 
 class IsoCan11Adapter : public IsoCanAdapter {

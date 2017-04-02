@@ -6,11 +6,13 @@
  */
 
 #include <memory>
+#include <cstdio>
 #include <adaptertypes.h>
 #include <Timer.h>
 #include <candriver.h>
 #include <led.h>
 #include "canmsgbuffer.h"
+#include <algorithms.h>
 #include "obdprofile.h"
 #include "j1979.h"
 #include "isocan.h"
@@ -23,10 +25,11 @@ const int CAN_FRAME_LEN = 8;
 
 IsoCanAdapter::IsoCanAdapter()
 {
-    extended_ = false;
-    driver_ = CanDriver::instance();
-    history_ = new CanHistory();
-    sts_     = REPLY_NO_DATA;
+    extended_   = false;
+    driver_     = CanDriver::instance();
+    history_    = new CanHistory();
+    sts_        = REPLY_NO_DATA;
+    canExtAddr_ = false;
 }
 
 /**
@@ -46,6 +49,7 @@ bool IsoCanAdapter::sendToEcu(const uint8_t* buff, int length)
     // Extended address byte
     const ByteArray* canExt = config_->getBytesProperty(PAR_CAN_EXT);
     int totalLen = canExt->length ? (length + 2) : (length + 1); // + cea byte, + len byte
+    canExtAddr_ = canExt->length; // set class instance member
     
     if (totalLen <= CAN_FRAME_LEN) { 
         int i = 0;
@@ -60,19 +64,22 @@ bool IsoCanAdapter::sendToEcu(const uint8_t* buff, int length)
         memcpy(data + i, buff, length);
         return sendFrameToEcu(data, totalLen, dlc);
     }
-    else
+    else {
         return false;
+    }
 }
+
 /**
- * Send buffer to ECU using CAN
+ * Send a single CAN frame to ECU
  * @param[in] data The message data bytes
- * @param[in] len The message length
+ * @param[in] length The message length
+ * @param[in] dlc The message DLC
  * @return true if OK, false if data issues
  */
-bool IsoCanAdapter::sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc)
+bool IsoCanAdapter::sendFrameToEcu(const uint8_t* data, uint8_t length, uint8_t dlc)
 {
     CanMsgBuffer msgBuffer(getID(), extended_, dlc, 0);
-    memcpy(msgBuffer.data, data, len);
+    memcpy(msgBuffer.data, data, length);
     
     // Message log
     history_->add2Buffer(&msgBuffer, true, 0);
@@ -87,8 +94,9 @@ bool IsoCanAdapter::sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc
  * Format reply for "H1" option
  * @param[in] msg CanMsgbuffer instance pointer
  * @param[out] str The output string
+ * @param[in] msg CanMsgbuffer instance pointer
  */
-void IsoCanAdapter::formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str)
+void IsoCanAdapter::formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str, int dlen)
 {
     CanIDToString(msg->id, str, msg->extended);
     bool useSpaces = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
@@ -102,21 +110,70 @@ void IsoCanAdapter::formatReplyWithHeader(const CanMsgBuffer* msg, util::string&
             str += ' ';
         }
     }
-    to_ascii(msg->data, 8, str);
+    to_ascii(msg->data, dlen, str);
 }
 
 /**
- * Process first/next/single frames
+ * Process single frame
  * @param[in] msg CanMsgbuffer instance pointer
  */
 void IsoCanAdapter::processFrame(const CanMsgBuffer* msg)
 {
     util::string str;
+    uint32_t offst = canExtAddr_ ? 2 : 1;
+    uint32_t dlen = msg->data[offst - 1];
+    
     if (config_->getBoolProperty(PAR_HEADER_SHOW)) {
-        formatReplyWithHeader(msg, str);
+        formatReplyWithHeader(msg, str, dlen + offst);
     }
     else {
-        to_ascii(msg->data, 8, str);
+        to_ascii(msg->data + offst, dlen, str);
+    }
+    AdptSendReply(str);
+}
+
+/**
+ * Process first frame
+ * @param[in] msg CanMsgbuffer instance pointer
+ */
+void IsoCanAdapter::processFirstFrame(const CanMsgBuffer* msg)
+{
+    util::string str;
+    uint32_t offst = canExtAddr_ ? 2 : 1;
+    uint32_t dlen = canExtAddr_ ? 5 : 6;
+    uint32_t msgLen = (msg->data[offst - 1] & 0x0F) << 8 | msg->data[offst];
+
+    if (config_->getBoolProperty(PAR_HEADER_SHOW)) {
+        formatReplyWithHeader(msg, str, 8);
+    }
+    else {
+        CanIDToString(msgLen, str, false); // we need only 3 digits
+        AdptSendReply(str);
+        str = "0: ";
+        to_ascii(msg->data + offst + 1, dlen, str);
+    }
+    AdptSendReply(str);
+}
+
+/**
+ * Process next frame
+ * @param[in] msg CanMsgbuffer instance pointer
+ * @param[in] n frame sequential number
+ */
+void IsoCanAdapter::processNextFrame(const CanMsgBuffer* msg, int n)
+{
+    util::string str;
+    uint32_t offst = canExtAddr_ ? 2 : 1;
+    uint32_t dlen = canExtAddr_ ? 6 : 7;
+
+    if (config_->getBoolProperty(PAR_HEADER_SHOW)) {
+        formatReplyWithHeader(msg, str, 8);
+    }
+    else {
+        char prefix[4]; // space for 1.5 bytes max
+        sprintf(prefix, "%x: ", n);
+        str = prefix;
+        to_ascii(msg->data + offst, dlen, str);
     }
     AdptSendReply(str);
 }
@@ -124,12 +181,11 @@ void IsoCanAdapter::processFrame(const CanMsgBuffer* msg)
 /**
  * ISO14230 Timing Exceptions handler, requestCorrectlyReceived-ResponsePending
  * @param[in] msg CanMsgbuffer instance pointer
- * @param[in] canExt CAN extended mode flag
  * @return true if timeout exception, false otherwise
  */
-bool IsoCanAdapter::checkResponsePending(const CanMsgBuffer* msg, bool canExt)
+bool IsoCanAdapter::checkResponsePending(const CanMsgBuffer* msg)
 {
-    int offst = canExt ? 1 : 0;
+    int offst = canExtAddr_ ? 1 : 0;
     
     // Looking for "requestCorrectlyReceived-ResponsePending", 7F.XX.78
     if (msg->data[1 + offst] == 0x7F && msg->data[3 + offst] == 0x78) {
@@ -150,7 +206,8 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
     const int p2Timeout = getP2MaxTimeout();
     CanMsgBuffer msgBuffer;
     bool msgReceived = false;
-    bool canExt = config_->getBytesProperty(PAR_CAN_EXT)->length;
+    canExtAddr_ = config_->getBytesProperty(PAR_CAN_EXT)->length; // set class instance member
+    int frameNum = 0;
     
     Timer* timer = Timer::instance(0);
     timer->start(p2Timeout);
@@ -163,9 +220,9 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
         // Message log
         history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
         
-        if (!checkResponsePending(&msgBuffer, canExt) || pendRespCounter > MAX_PEND_RESP_NUM) {
+        if (!checkResponsePending(&msgBuffer) || pendRespCounter > MAX_PEND_RESP_NUM) {
             // Reload the timer, regular P2 timeout
-        timer->start(p2Timeout);
+            timer->start(p2Timeout);
         }
         else {
             // Reload the timer, P2* timeout
@@ -185,18 +242,17 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
             continue;
         
         // CAN extextended address
-        uint8_t keyByte = canExt ? msgBuffer.data[1] : msgBuffer.data[0];
-        
+        uint8_t keyByte = canExtAddr_ ? msgBuffer.data[1] : msgBuffer.data[0];
         switch ((keyByte & 0xF0) >> 4) {
             case CANSingleFrame:
                 processFrame(&msgBuffer);
                 break;
             case CANFirstFrame:
                 processFlowFrame(&msgBuffer);
-                processFrame(&msgBuffer);
+                processFirstFrame(&msgBuffer);
                 break;
             case CANConsecutiveFrame:
-                processFrame(&msgBuffer);
+                processNextFrame(&msgBuffer, ++frameNum);
                 break;
             default:
                 processFrame(&msgBuffer); // oops
@@ -209,7 +265,6 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
 bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin)
 {
     const int p2Timeout = getP2MaxTimeout();
-    bool canUseExtended = (config_->getBytesProperty(PAR_CAN_EXT)->length > 0);
     CanMsgBuffer msgBuffer;
     
     Timer* timer = Timer::instance(0);
@@ -223,13 +278,13 @@ bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin
         // Message log
         history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
 
-        if (!canUseExtended && (msgBuffer.data[0] & 0xF0) == 0x30) {
+        if (!canExtAddr_ && (msgBuffer.data[0] & 0xF0) == 0x30) {
             fs = msgBuffer.data[0] & 0x0F;
             bs = msgBuffer.data[1];
             stmin = msgBuffer.data[2];
             return true;
         }
-        else if (canUseExtended && (msgBuffer.data[1] & 0xF0) == 0x30) {
+        else if (canExtAddr_ && (msgBuffer.data[1] & 0xF0) == 0x30) {
             fs = msgBuffer.data[1] & 0x0F;
             bs = msgBuffer.data[2];
             stmin = msgBuffer.data[3];
@@ -242,8 +297,9 @@ bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin
 
 int IsoCanAdapter::getP2MaxTimeout() const
 {
-    int p2Timeout = config_->getIntProperty(PAR_TIMEOUT); 
-    return p2Timeout ? (p2Timeout * 4) : P2_MAX_TIMEOUT;
+    int p2Timeout = config_->getIntProperty(PAR_TIMEOUT);
+    int p2Mult = config_->getIntProperty(PAR_CAN_TIMEOUT_MULT);
+    return p2Timeout ? (p2Timeout * 4 * p2Mult) : P2_MAX_TIMEOUT;
 }
 
 /**
@@ -271,16 +327,21 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
     open();
 
     if (!config_->getBoolProperty(PAR_BYPASS_INIT)) {
-    if (driver_->send(&msgBuffer)) { 
-        if (receiveFromEcu(sendReply)) {
-            connected_ = true;
-            return extended_ ? PROT_ISO15765_2950 : PROT_ISO15765_1150;
+        bool retCode = driver_->send(&msgBuffer);
+        
+        // Message log
+        history_->add2Buffer(&msgBuffer, true, 0);
+
+        if (retCode) { 
+            if (receiveFromEcu(sendReply)) {
+                connected_ = true;
+                return extended_ ? PROT_ISO15765_2950 : PROT_ISO15765_1150;
+            }
         }
+        close(); // Close only if not succeeded
+        sts_ = REPLY_NO_DATA;
+        return 0;
     }
-    close(); // Close only if not succeeded
-    sts_ = REPLY_NO_DATA;
-    return 0;
-}
     else {
         connected_ = true;
         return extended_ ? PROT_ISO15765_2950 : PROT_ISO15765_1150;
@@ -453,7 +514,8 @@ uint32_t IsoCan29Adapter::getID() const
 { 
     IntAggregate id;
     uint8_t canPriority = 0;
-
+    
+    // Get the highest 29bit header byte
     const ByteArray* prioBits = config_->getBytesProperty(PAR_CAN_PRIORITY_BITS);
     if (prioBits->length) {
         canPriority = prioBits->data[0] & 0x1F;

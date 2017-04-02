@@ -71,8 +71,8 @@ private:
  */
 Ecumsg* Ecumsg::instance(uint8_t type)
 {
-    const uint32_t size = 255 + 10;
-    Ecumsg* instance = 0;
+    const uint32_t size = 255 + 10; // Max for ISO9141/KWP
+    Ecumsg* instance = nullptr;
     switch(type) {
         case ISO9141:
             instance = new EcumsgISO9141(size);
@@ -194,7 +194,8 @@ void EcumsgISO14230::addHeaderAndChecksum()
 {
     uint8_t headerForm = header_[0] >> 6;  // Table 1, 14230-2
     int headerSize = (headerForm == 0) ? 1 : 3;
-    if (length_ > 63) 
+    bool byteLenPresent = (length_ > 63) | ((header_[0] & 0x0F) == 0);
+    if (byteLenPresent)
         headerSize++;
     
     uint8_t len = length_; // the message length without header
@@ -205,7 +206,7 @@ void EcumsgISO14230::addHeaderAndChecksum()
     length_ += headerSize;
     
     // Figure out where to store len
-    if (length_ > 63 ) { // separate byte, the last of the header
+    if (byteLenPresent) { // separate byte, the last of the header
         data_[headerSize - 1] = len;
         data_[0] &= 0xC0;
     }
