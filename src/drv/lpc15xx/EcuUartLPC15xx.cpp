@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2017 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -17,6 +17,9 @@ const int RxPin  = 7;
 const int RxPort = 0;
 const int TxPort = 0;
 const uint32_t PinAssign = ((RxPin << 16) + (RxPort * 32)) | ((TxPin << 8)  + (TxPort * 32));
+
+//#define INVERT_OUTPUT
+#define OPEN_DRAIN
 
 /**
  * EcuUart singleton
@@ -35,8 +38,12 @@ void EcuUart::configure()
 {
     // Enable UART1 clock
     GPIOPinConfig(RxPort, RxPin, 0);
-    GPIOPinConfig(TxPort, TxPin, GPIO_OPEN_DRAIN); // open-drain
-
+#ifdef OPEN_DRAIN
+    GPIOPinConfig(TxPort, TxPin, GPIO_OPEN_DRAIN);
+#else
+    GPIOPinConfig(TxPort, TxPin, 0);
+#endif
+    
     GPIOSetDir(RxPort, RxPin, GPIO_INPUT);
     GPIOSetDir(TxPort, TxPin, GPIO_OUTPUT);
 
@@ -44,9 +51,9 @@ void EcuUart::configure()
     LPC_SYSCON->PRESETCTRL1 |=  (1 << 18);
     LPC_SYSCON->PRESETCTRL1 &= ~(1 << 18);
     LPC_SYSCON->UARTCLKDIV = 1;
-
-    LPC_SWM->PINASSIGN1 &= 0xFF0000FF;
-    LPC_SWM->PINASSIGN1 |= PinAssign;
+    
+    // Set the K-line to high
+    instance()->setBit(1);
 }
 
 /**
@@ -56,6 +63,8 @@ void EcuUart::configure()
  */
 void EcuUart::init(uint32_t speed)
 {
+    setBitBang(false);
+    
     const int UART_MEM_LEN = 40;
 
     // Allocate UART API block
@@ -77,6 +86,11 @@ void EcuUart::init(uint32_t speed)
 
     // Initialize the UART with the configuration parameters
     LPC_UARTD_API->uart_init(uartHandle, &cfg);
+    
+    // Invert output for simple transistor-based K-line driver
+#ifdef INVERT_OUTPUT
+    LPC_USART1->CFG |= (0x1 << 23); // TXPOL flag
+#endif
 }
 
 /**
@@ -147,15 +161,18 @@ void EcuUart::setBitBang(bool val)
 }
 
 /*
-
  * Set the USART TX pin status
  * @parameter[in] bit USART TX pin value
  */
 void EcuUart::setBit(uint32_t bit)
 {
+#ifndef INVERT_OUTPUT
     GPIOPinWrite(TxPort, TxPin, bit);
+#else
+    // Invert output for simple transistor-based K-line driver
+    GPIOPinWrite(TxPort, TxPin, (bit ? 0 : 1)); 
+#endif
 }
-
 
 /**
  * Read USART RX pin status
@@ -164,4 +181,12 @@ void EcuUart::setBit(uint32_t bit)
 uint32_t EcuUart::getBit()
 {
     return GPIOPinRead(RxPort, RxPin);
+}
+
+/**
+ * Clear Framing/Parity errors, if any by reading RXDATA
+ */
+void EcuUart::clear()
+{
+    get();
 }

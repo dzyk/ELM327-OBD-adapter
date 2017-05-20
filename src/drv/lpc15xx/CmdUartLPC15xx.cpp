@@ -50,7 +50,7 @@ void CmdUart::configure()
     LPC_SYSCON->UARTCLKDIV = 1;
 
     GPIOPinConfig(RxPort, RxPin, 0);
-    GPIOPinConfig(TxPort, TxPin, 0); // open-drain
+    GPIOPinConfig(TxPort, TxPin, 0);
 
     LPC_SWM->PINASSIGN0 &= 0xFFFF0000;
     LPC_SWM->PINASSIGN0 |= PinAssign;

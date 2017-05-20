@@ -171,7 +171,7 @@ void IsoCanAdapter::processNextFrame(const CanMsgBuffer* msg, int n)
     }
     else {
         char prefix[4]; // space for 1.5 bytes max
-        sprintf(prefix, "%x: ", n);
+        sprintf(prefix, "%X: ", (n & 0x0F));
         str = prefix;
         to_ascii(msg->data + offst, dlen, str);
     }

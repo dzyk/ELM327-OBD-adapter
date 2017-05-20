@@ -22,7 +22,7 @@ public:
     uint8_t get();
     bool getEcho(uint8_t byte);
     bool ready();
-    void clear() {}
+    void clear();
     void setBitBang(bool val);
     void setBit(uint32_t val);
     uint32_t getBit();
