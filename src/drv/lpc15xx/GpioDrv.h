@@ -18,6 +18,7 @@ const uint32_t GPIO_OUTPUT = 0x1;
 
 // Port attributes
 const uint32_t GPIO_OPEN_DRAIN = 0x400;
+const uint32_t GPIO_HYSTERESIS = 0x020;
 
 void GPIOSetDir(uint32_t portNum, uint32_t pinNum, uint32_t dir);
 void GPIOPinWrite(uint32_t portNum, uint32_t pinNum, uint32_t val);

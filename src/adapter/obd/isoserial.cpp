@@ -257,6 +257,8 @@ int IsoSerialAdapter::onConnectEcuSlow(int protocol)
     if (!ecuSlowInit())
         return REPLY_WIRING_ERROR;
 
+    uart_->clear(); // clear error flags
+    
 #ifdef __BELLS_AND_WHISTLES__
     // Send the first "."
     if (protocol != PROT_AUTO) {
