@@ -14,7 +14,7 @@ class AutoAdapter : public ProtocolAdapter {
 public:
     AutoAdapter() { connected_ = false; }
     virtual int onConnectEcu(bool sendReply);
-    virtual int onRequest(const uint8_t* data, int len);
+    virtual int onRequest(const uint8_t* data, uint32_t len, uint32_t numOfRes);
     virtual void getDescription();
     virtual void getDescriptionNum();
     virtual int getProtocol() const { return PROT_AUTO; }

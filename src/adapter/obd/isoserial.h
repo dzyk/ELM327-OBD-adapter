@@ -22,7 +22,7 @@ public:
     friend class ProtocolAdapter;
     virtual void getDescription();
     virtual void getDescriptionNum();
-    virtual int onRequest(const uint8_t* data, int len);
+    virtual int onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp);
     virtual int onConnectEcu(bool sendReply);
     virtual void open();
     virtual void close();
@@ -45,8 +45,8 @@ private:
     void configureProperties();
     int  onConnectEcuSlow(int protocol);
     int  onConnectEcuFast(int protocol);
-    int  getP2MaxTimeout() const;
-    int  get2MaxLen() const;
+    uint32_t get2MaxLen() const;
+    uint32_t getP2MaxTimeout() const;
     uint32_t getWakeupTime() const; 
     bool     kwCheck_;
     uint8_t  isoKwrds_[2];

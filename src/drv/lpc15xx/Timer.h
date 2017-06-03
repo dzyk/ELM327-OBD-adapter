@@ -22,7 +22,7 @@ public:
     static Timer* instance(int timerNum);
     void start(uint32_t interval);
     bool isExpired() const;
-    uint32_t value();
+    uint32_t value() const;
 protected:
     Timer(int timerNum);
     LPC_MRT_CH_T* timer_;

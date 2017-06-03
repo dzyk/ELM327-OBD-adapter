@@ -13,6 +13,7 @@
 #include <algorithms.h>
 #include <CmdUart.h>
 #include <AdcDriver.h>
+#include <TimeoutMgr.h>
 #include <obd/isocan.h>
 
 using namespace util;
@@ -113,6 +114,39 @@ static void OnSetBytes(const string& cmd, int par)
  */
 static void OnSetOK(const string& cmd, int par)
 {
+    AdptSendReply(OkMessage);
+}
+
+/**
+ * Disable Adaptive Timing control
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnSetAT0(const string& cmd, int par)
+{
+    TimeoutManager::instance()->mode(TimeoutManager::AT0);
+    AdptSendReply(OkMessage);
+}
+
+/**
+ * Set Adaptive Timing control mode 1
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnSetAT1(const string& cmd, int par)
+{
+    TimeoutManager::instance()->mode(TimeoutManager::AT1);
+    AdptSendReply(OkMessage);
+}
+
+/**
+ * Set Adaptive Timing control mode 2
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnSetAT2(const string& cmd, int par)
+{
+    TimeoutManager::instance()->mode(TimeoutManager::AT2);
     AdptSendReply(OkMessage);
 }
 
@@ -501,9 +535,9 @@ static const DispatchType dispatchTbl[] = {
     { "@1",     PAR_VERSION,           0,  0, OnSendReplyVersion     },
     { "AL",     PAR_ALLOW_LONG,        0,  0, OnSetValueTrue         },
     { "AR",     PAR_AUTO_RECEIVE,      0,  0, OnSetValueTrue         },
-    { "AT0",    PAR_ADPTV_TIM0,        0,  0, OnSetOK                },
-    { "AT1",    PAR_ADPTV_TIM1,        0,  0, OnSetOK                },
-    { "AT2",    PAR_ADPTV_TIM2,        0,  0, OnSetOK                },
+    { "0",      PAR_ADPTV_TIM0,        0,  0, OnSetAT0               },
+    { "1",      PAR_ADPTV_TIM1,        0,  0, OnSetAT1               },
+    { "2",      PAR_ADPTV_TIM2,        0,  0, OnSetAT2               },
     { "BD",     PAR_BUFFER_DUMP,       0,  0, OnBufferDump           },
     { "AL",     PAR_ALLOW_LONG,        0,  0, OnSetOK                },
     { "BI",     PAR_BYPASS_INIT,       0,  0, OnSetValueTrue         },

@@ -43,10 +43,6 @@ void to_upper(string& str)
 bool is_xdigits(const string& str)
 {
     int len = str.length();
-    if (len == 0 || len % 2) {
-        return false; // Invalid string
-    }
-
     for (int i = 0; i < len; i++) {
         if (!isxdigit(str[i])) {
             return false;

@@ -48,6 +48,18 @@ bool Timer::isExpired() const
 }
 
 /**
+ * Return the elapsed time
+ * @return the number of milliseconds elapsed sinse started
+ */
+uint32_t Timer::value() const
+{
+    //return ((timer_->INTVAL & 0xFFFFFF) - timer_->TIMER) / tickDiv;
+    uint32_t v = ((timer_->INTVAL & 0xFFFFFF) - timer_->TIMER) / tickDiv;
+    uint32_t v2 = v;
+    return v2;
+}
+
+/**
  * Factory method to construct the Timer object
  * @param[in] timerNum Logical timer number (0..1)
  * @return Timer pointer

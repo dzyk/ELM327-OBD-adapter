@@ -8,10 +8,8 @@
 #ifndef __J1850_DEFINES_H__ 
 #define __J1850_DEFINES_H__
 
-//
 // SAE J1850 timeouts definition
 //
-
 enum J1850Limits {
     J1850_BYTES_MIN =  1,
     J1850_BYTES_MAX = 12,

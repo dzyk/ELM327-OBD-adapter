@@ -58,7 +58,7 @@ class ProtocolAdapter {
 public:
     static ProtocolAdapter* getAdapter(int adapterType);
     virtual int onConnectEcu(bool sendReply) = 0;
-    virtual int onRequest(const uint8_t* data, int len) = 0;
+    virtual int onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp) = 0;
     virtual void getDescription() = 0;
     virtual void getDescriptionNum() = 0;
     virtual void dumpBuffer();

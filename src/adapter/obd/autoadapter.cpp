@@ -19,7 +19,7 @@ void AutoAdapter::getDescriptionNum()
     AdptSendReply(reply);
 }
 
-int AutoAdapter::onRequest(const uint8_t* data, int len)
+int AutoAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numOfRes)
 {
     return REPLY_NO_DATA;
 }

@@ -17,6 +17,7 @@
 #include "j1979.h"
 #include "isocan.h"
 #include "canhistory.h"
+#include "timeoutmgr.h"
 
 using namespace std;
 using namespace util;
@@ -94,7 +95,7 @@ bool IsoCanAdapter::sendFrameToEcu(const uint8_t* data, uint8_t length, uint8_t 
  * Format reply for "H1" option
  * @param[in] msg CanMsgbuffer instance pointer
  * @param[out] str The output string
- * @param[in] msg CanMsgbuffer instance pointer
+ * @param[in] dlen The data length flag
  */
 void IsoCanAdapter::formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str, int dlen)
 {
@@ -158,7 +159,7 @@ void IsoCanAdapter::processFirstFrame(const CanMsgBuffer* msg)
 /**
  * Process next frame
  * @param[in] msg CanMsgbuffer instance pointer
- * @param[in] n frame sequential number
+ * @param[in] n Frame sequential number
  */
 void IsoCanAdapter::processNextFrame(const CanMsgBuffer* msg, int n)
 {
@@ -196,10 +197,11 @@ bool IsoCanAdapter::checkResponsePending(const CanMsgBuffer* msg)
 
 /**
  * Receives a sequence of bytes from the CAN bus
- * @param[in] sendReply send reply to user flag
+ * @param[in] sendReply Send reply to user flag
+ * @param[in] numOfResp The number of responces to wait for
  * @return true if message received, false otherwise
  */
-bool IsoCanAdapter::receiveFromEcu(bool sendReply)
+bool IsoCanAdapter::receiveFromEcu(bool sendReply, uint32_t numOfResp)
 {
     const int MAX_PEND_RESP_NUM = 100;
     int pendRespCounter = 0;
@@ -212,10 +214,14 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
     Timer* timer = Timer::instance(0);
     timer->start(p2Timeout);
 
+    uint32_t num = 0;
     do {
         if (!driver_->isReady())
             continue;
         driver_->read(&msgBuffer);
+        
+        // Measure the response time
+        TimeoutManager::instance()->p2Timeout(timer->value());
         
         // Message log
         history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
@@ -237,6 +243,7 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
                 continue;
         }*/
 
+        num++; // number of received messages
         msgReceived = true;
         if (!sendReply)
             continue;
@@ -257,11 +264,17 @@ bool IsoCanAdapter::receiveFromEcu(bool sendReply)
             default:
                 processFrame(&msgBuffer); // oops
         }
-    } while (!timer->isExpired());
+    } while (!timer->isExpired() && (num < numOfResp));
 
     return msgReceived;
 }
 
+/**
+ * CAN control frame handler
+ * @param[in] fs Frame FS parameter
+ * @param[in] bs Frame BS parameter
+ * @return true if message received, false otherwise
+ */
 bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin)
 {
     const int p2Timeout = getP2MaxTimeout();
@@ -275,7 +288,7 @@ bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin
             continue;
         driver_->read(&msgBuffer);
         
-        // Message log
+        // Log Message
         history_->add2Buffer(&msgBuffer, false, msgBuffer.msgnum);
 
         if (!canExtAddr_ && (msgBuffer.data[0] & 0xF0) == 0x30) {
@@ -295,24 +308,27 @@ bool IsoCanAdapter::receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin
     return false;
 }
 
-int IsoCanAdapter::getP2MaxTimeout() const
+/**
+ * The P2 Max timeout to use, use either ISO default or custom value
+ * @return The timeout value
+ */
+uint32_t IsoCanAdapter::getP2MaxTimeout() const
 {
-    int p2Timeout = config_->getIntProperty(PAR_TIMEOUT);
-    int p2Mult = config_->getIntProperty(PAR_CAN_TIMEOUT_MULT);
-    return p2Timeout ? (p2Timeout * 4 * p2Mult) : P2_MAX_TIMEOUT;
+    return TimeoutManager::instance()->p2Timeout();
 }
 
 /**
  * Global entry ECU send/receive function
  * @param[in] data The message data bytes
  * @param[in] len The message length
+ * @param[in] numOfResp The number of responces to wait for
  * @return The completion status code
  */
-int IsoCanAdapter::onRequest(const uint8_t* data, int len)
+int IsoCanAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp)
 {
     if (!sendToEcu(data, len))
         return REPLY_DATA_ERROR;
-    return receiveFromEcu(true) ? REPLY_NONE : REPLY_NO_DATA;
+    return receiveFromEcu(true, numOfResp) ? REPLY_NONE : REPLY_NO_DATA;
 }
 
 /**
@@ -333,7 +349,7 @@ int IsoCanAdapter::onConnectEcu(bool sendReply)
         history_->add2Buffer(&msgBuffer, true, 0);
 
         if (retCode) { 
-            if (receiveFromEcu(sendReply)) {
+            if (receiveFromEcu(sendReply, 0xFFFFFFFF)) {
                 connected_ = true;
                 return extended_ ? PROT_ISO15765_2950 : PROT_ISO15765_1150;
             }
@@ -394,6 +410,9 @@ void IsoCan11Adapter::open()
     
     //Start using LED timer
     AdptLED::instance()->startTimer();
+    
+    // Reset adaptive timing
+    TimeoutManager::instance()->reset();
 }
 
 uint32_t IsoCan11Adapter::getID() const
@@ -508,6 +527,9 @@ void IsoCan29Adapter::open()
     
     // Start using LED timer
     AdptLED::instance()->startTimer();
+    
+    // Reset adaptive timing
+    TimeoutManager::instance()->reset();
 }
 
 uint32_t IsoCan29Adapter::getID() const

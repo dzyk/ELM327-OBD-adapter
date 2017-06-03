@@ -110,8 +110,9 @@ uint32_t to_bytes(const string& str, uint8_t* bytes)
 {
     int len = str.length();
     
-    if ((len % 2) != 0)
-        return 0;
+    if ((len % 2) != 0) {
+        len--; // Skip the last digit
+    }
     
     int j = 0;
     for (int i = 0; i < len / 2; i++) {
@@ -144,7 +145,6 @@ void to_ascii(const uint8_t* bytes, uint32_t length, string& str)
         str.resize(str.length() - 1); // Truncate the last space
     }
 }
-
 
 static uint32_t reverse2bytes(uint32_t val) 
 {

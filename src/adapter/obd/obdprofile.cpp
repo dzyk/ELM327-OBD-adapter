@@ -5,6 +5,7 @@
  *
  */
 
+#include <algorithms.h>
 #include "obdprofile.h"
 
 using namespace util;
@@ -159,6 +160,25 @@ void OBDProfile::onRequest(const string& cmdString)
 }    
 
 /**
+ * The number of frames parameter parser
+ * @param[in] cmdString The command
+ * @param[in] cmdString The command length
+ * @return The number of responces to wait for
+ */
+static uint32_t numOfFrames(const string& str, uint32_t len)
+{
+    const uint32_t NumOfResp = 0xFFFFFFFF;;
+    
+    if ((len % 2) == 0) {
+        return NumOfResp;
+    }
+    else {
+        uint32_t value = stoul(str.substr(len-1, 1), 0, 16);
+        return (value > 0) ? value : NumOfResp;
+    }
+}
+
+/**
  * The actual implementation of request handler
  * @param[in] cmdString The command
  * @return The status code
@@ -170,10 +190,12 @@ int OBDProfile::onRequestImpl(const string& cmdString)
 
     // Buffer overrun check,
     // should be less then (11 * 2) => 22 characters
-    if (cmdString.length() > (sizeof(data) * 2)) {
+    uint32_t cmdLen = cmdString.length();
+    if (cmdLen > (sizeof(data) * 2)) {
         return REPLY_CMD_WRONG;
     }
-
+    
+    uint32_t numOfResp = numOfFrames(cmdString, cmdLen);
     int len = to_bytes(cmdString, data);
 
     // Valid request length?
@@ -183,7 +205,7 @@ int OBDProfile::onRequestImpl(const string& cmdString)
 
     // The regular flow stops here
     if (adapter_->isConnected()) {
-        return adapter_->onRequest(data, len);
+        return adapter_->onRequest(data, len, numOfResp);
     } 
 
     // The convoluted logic
@@ -213,7 +235,7 @@ int OBDProfile::onRequestImpl(const string& cmdString)
     if (protocol) {
         setProtocol(protocol, false);
         if (!sendReply || (protocol >= PROT_ISO9141 && protocol <= PROT_ISO14230)) {
-            sts = adapter_->onRequest(data, len);
+            sts = adapter_->onRequest(data, len, numOfResp);
         }
         else {
             sts = REPLY_NONE; //the command sent already as part of autoconnect

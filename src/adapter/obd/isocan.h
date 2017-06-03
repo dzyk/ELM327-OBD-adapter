@@ -19,7 +19,7 @@ public:
     static const int CANConsecutiveFrame = 2;
     static const int CANFlowControlFrame = 3;
 public:
-    virtual int onRequest(const uint8_t* data, int len);
+    virtual int onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp);
     virtual int onConnectEcu(bool sendReply);
     virtual void setCanCAF(bool val) {}
     virtual void wiringCheck();
@@ -30,14 +30,14 @@ protected:
     virtual void processFlowFrame(const CanMsgBuffer* msgBuffer) = 0;
     bool sendToEcu(const uint8_t* data, int len);
     bool sendFrameToEcu(const uint8_t* data, uint8_t len, uint8_t dlc);
-    bool receiveFromEcu(bool sendReply);
+    bool receiveFromEcu(bool sendReply, uint32_t numOfResp);
     bool checkResponsePending(const CanMsgBuffer* msg);
     void processFrame(const CanMsgBuffer* msg);
     void processFirstFrame(const CanMsgBuffer* msg);
     void processNextFrame(const CanMsgBuffer* msg, int n);
     void formatReplyWithHeader(const CanMsgBuffer* msg, util::string& str, int dlen);
     bool receiveControlFrame(uint8_t& fs, uint8_t& bs, uint8_t& stmin);
-    int getP2MaxTimeout() const;
+    uint32_t getP2MaxTimeout() const;
 protected:
     CanDriver*  driver_;
     CanHistory* history_;

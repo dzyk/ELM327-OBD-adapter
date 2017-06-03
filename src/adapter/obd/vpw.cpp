@@ -13,6 +13,7 @@
 #include "obdprofile.h"
 #include "j1850.h"
 #include "vpw.h"
+#include "timeoutmgr.h"
 
 using namespace util;
 
@@ -28,6 +29,9 @@ VpwAdapter::VpwAdapter()
 void VpwAdapter::open()
 {
     driver_->open(true);
+    
+    // Reset adaptive timing
+    TimeoutManager::instance()->reset();
 }
 
 /**
@@ -168,13 +172,14 @@ exte: // Invalid pulse width, BUS_ERROR
 
 /**
  * VPW request handler
- * @param[in] data command 
  * @param[in] data Data bytes
+ * @param[in] len The data length
+ * @param[in] numOfResp The number of responces to wait for
  * @return The completion status
  */
-int VpwAdapter::onRequest(const uint8_t* data, int len)
+int VpwAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp)
 {
-    return requestImpl(data, len, true);
+    return requestImpl(data, len, numOfResp, true);
 }
 
 /**
@@ -193,7 +198,7 @@ int VpwAdapter::onConnectEcu(bool sendReply)
     	return PROT_J1850_VPW;
     }
 
-    int reply = requestImpl(testSeq, sizeof(testSeq), sendReply);
+    int reply = requestImpl(testSeq, sizeof(testSeq), 0xFFFFFFFF, sendReply);
 
     connected_ = (reply == REPLY_NONE);
     if (!connected_) {
@@ -202,7 +207,15 @@ int VpwAdapter::onConnectEcu(bool sendReply)
     return connected_ ? PROT_J1850_VPW : 0;
 }
 
-int VpwAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
+/**
+ * VPW request handler actual implementation
+ * @param[in] data Data bytes
+ * @param[in] len The data length
+ * @param[in] numOfResp The number of responces to wait for
+ * @param[in] sendReply Send reply flag
+ * @return The completion status
+ */
+int VpwAdapter::requestImpl(const uint8_t* data, uint32_t len, uint32_t numOfResp, bool sendReply)
 {
     int p2Timeout = getP2MaxTimeout();
     bool gotReply = false;
@@ -228,6 +241,8 @@ int VpwAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
 
     // Set the reply operation timeout
     timer_->start(p2Timeout);
+    
+    uint32_t num = 0;
     do {
         int sts = receiveFromEcu(msg.get(), OBD_IN_MSG_LEN);
         if (sts == -1) { // Bus timing error
@@ -243,6 +258,11 @@ int VpwAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
             continue;
         }
 
+        // Measure the response time
+        TimeoutManager::instance()->p2Timeout(timer_->value());
+
+        num++; // number of received messages
+        
         // OK, got OBD message, reset Timer
         timer_->start(p2Timeout);
 
@@ -260,20 +280,19 @@ int VpwAdapter::requestImpl(const uint8_t* data, int len, bool sendReply)
         }
         str.resize(0);
         gotReply = true;
-    } while(!timer_->isExpired());
+    } while(!timer_->isExpired() && (num < numOfResp));
 
     // Reply
     return gotReply ? REPLY_NONE : REPLY_NO_DATA;
 }
 
 /**
- * Use either ISO default or custom value
- * @return Timeout value
+ * The P2 Max timeout to use, use either ISO default or custom value
+ * @return The timeout value
  */
-int VpwAdapter::getP2MaxTimeout() const
+uint32_t VpwAdapter::getP2MaxTimeout() const
 {
-    int p2Timeout = config_->getIntProperty(PAR_TIMEOUT);
-    return p2Timeout ? (p2Timeout * 4) : P2_J1850;
+    return TimeoutManager::instance()->p2Timeout();
 }
 
 /**

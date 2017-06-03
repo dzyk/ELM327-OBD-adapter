@@ -13,6 +13,7 @@
 #include <EcuUart.h>
 #include "j1979.h"
 #include "isoserial.h"
+#include "timeoutmgr.h"
 
 using namespace std;
 using namespace util;
@@ -89,11 +90,11 @@ bool IsoSerialAdapter::isKeepAlive()
  */
 IsoSerialAdapter::IsoSerialAdapter()
 {
-    protocol_          = PROT_AUTO;
-    uart_              = EcuUart::instance();
-    keepAliveTimer_    = LongTimer::instance();
-    p3Timer_           = Timer::instance(1);
-    sts_            = REPLY_NO_DATA;
+    protocol_       =  PROT_AUTO;
+    uart_           =  EcuUart::instance();
+    keepAliveTimer_ =  LongTimer::instance();
+    p3Timer_        =  Timer::instance(1);
+    sts_            =  REPLY_NO_DATA;
 }
 
 /**
@@ -102,6 +103,9 @@ IsoSerialAdapter::IsoSerialAdapter()
 void IsoSerialAdapter::open()
 {
     uart_->init(ECU_SPEED);
+    
+    // Reset adaptive timing
+    TimeoutManager::instance()->reset();
 }
 
 /**
@@ -176,8 +180,7 @@ void IsoSerialAdapter::receiveFromEcu(Ecumsg* msg, int maxLen, int p2Timeout, in
     Timer* timer = Timer::instance(1);
     timer->start(p2Timeout);
     
-    int i = 0;
-    for(; i < maxLen; i++) { // Only retrieve maxLen bytes
+    for(int i = 0; i < maxLen; i++) { // Only retrieve maxLen bytes
         // Wait for data to be received
         while(!uart_->ready()) {
             if (timer->isExpired())
@@ -185,9 +188,14 @@ void IsoSerialAdapter::receiveFromEcu(Ecumsg* msg, int maxLen, int p2Timeout, in
         }
 
         (*msg) += uart_->get();
+        
+        if (i == 0) { // Measure the response time
+            TimeoutManager::instance()->p2Timeout(timer->value());
+        }
+        
         RX_LED(1); // Turn the receive LED on
 
-        // Reload the timer with p1Timeout
+        // Reload the timer with P1 timeout
         timer->start(p1Timeout);
     }
 extm:
@@ -256,7 +264,7 @@ int IsoSerialAdapter::onConnectEcuSlow(int protocol)
     // And switch back to 10400 bit/s
     if (!ecuSlowInit())
         return REPLY_WIRING_ERROR;
-
+    
     uart_->clear(); // clear error flags
     
 #ifdef __BELLS_AND_WHISTLES__
@@ -534,9 +542,10 @@ bool IsoSerialAdapter::checkResponsePending(const Ecumsg* msg)
  * ISO serial request handler
  * @param[in] data Data bytes
  * @param[in] len Data length
+ * @param[in] numOfResp The number of responces to wait for
  * @return The completion status
  */
-int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
+int IsoSerialAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp)
 { 
     const int MAX_PEND_RESP_NUM = 100;
     int pendRespCounter = 0;
@@ -560,7 +569,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
     }
 
     // Wait for multiple replies
-    for (int i = 0; ; i++) {
+    for (uint32_t num = 0; num < numOfResp; ) {
         receiveFromEcu(msg.get(), maxLen, p2Timeout, P1_MAX_TIMEOUT); 
         if (msg->length() == 0)
             break;
@@ -574,7 +583,8 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, int len)
             p2Timeout = P2_MAX_TIMEOUT_S;
             pendRespCounter++;
         }
-            
+        
+        num++; // number of received messages
         reply = true; // Mark that we have received reply
         
         // Strip the message header/checksum if option "Send Header" is not set
@@ -736,20 +746,19 @@ ext:
 }
 
 /**
- * The P3Min timeout to use, use either ISO default or custom value
+ * The P2 Max timeout to use, use either ISO default or custom value
  * @return The timeout value
  */
-int IsoSerialAdapter::getP2MaxTimeout() const
+uint32_t IsoSerialAdapter::getP2MaxTimeout() const
 {
-    int p2Timeout = config_->getIntProperty(PAR_TIMEOUT); 
-    return p2Timeout ? (p2Timeout * 4) : P2_MAX_TIMEOUT;
+    return TimeoutManager::instance()->p2Timeout();
 }
 
 /**
  * Use the Max message length, either OBD standard or maximum allowed by implementation
  * @return The max length value
  */
-int IsoSerialAdapter::get2MaxLen() const
+uint32_t IsoSerialAdapter::get2MaxLen() const
 {
     bool longAllowed = config_->getBoolProperty(PAR_ALLOW_LONG);
     return longAllowed ? OBD_IN_MSG_LEN + 6 : OBD_IN_MSG_LEN;

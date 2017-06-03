@@ -16,7 +16,7 @@ class Timer;
 class PwmAdapter : public ProtocolAdapter {
 public:
     friend class ProtocolAdapter;
-    virtual int onRequest(const uint8_t* data, int leng);
+    virtual int onRequest(const uint8_t* data, uint32_t len, uint32_t numOfResp);
     virtual void getDescription();
     virtual void getDescriptionNum();
     virtual void open();
@@ -31,8 +31,8 @@ private:
     int getIfr();
     int sendToEcu(const Ecumsg* msg);
     int receiveFromEcu(Ecumsg* msg, int maxLen);
-    int getP2MaxTimeout() const;
-    int requestImpl(const uint8_t* data, int len, bool sendReply);
+    uint32_t getP2MaxTimeout() const;
+    int requestImpl(const uint8_t* data, uint32_t len, uint32_t numOfResp, bool sendReply);
     bool sendByte(uint8_t val);
     void sendSof();
     void sendIfr();
