@@ -23,7 +23,7 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.11";
+static const char Version    [] = "1.12";
 static const char Interface  [] = "ELM327 v2.1";
 static const char Copyright  [] = "Copyright (c) 2009-2017 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
@@ -339,8 +339,24 @@ static void OnKwDisplay(const string& cmd, int par)
     OBDProfile::instance()->kwDisplay();
 }
 
-static void OnJ1939Monitor(const string& cmd, int par)
+/**
+ * Execute J1939 DM1 monitor
+ * @param[in] cmd Command line, ignored
+ * @param[in] par The number in dispatch table, ignored
+ */
+static void OnJ1939MonitorDM1(const string& cmd, int par)
 {
+	OBDProfile::instance()->monitor();
+}
+
+/**
+ * Execute J1939 MP monitor
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table
+ */
+static void OnJ1939MonitorMP(const string& cmd, int par)
+{
+	OBDProfile::instance()->monitor(cmd);
 }
 
 /**
@@ -455,18 +471,18 @@ static void OnSet4HeaderBytes(const string& cmd, int par)
  */
 static void OnCanSetTimeoutMult(const string& cmd, int par)
 {
-    uint32_t val = 0;
+    bool val = false;
     if (cmd == "1") {
-        val = 1;
+        val = false;
     }
     else if(cmd == "5") {
-        val = 5;
+        val = true;
     }
     else {
         AdptSendReply(ErrMessage);
         return;
     }
-    AdapterConfig::instance()->setIntProperty(par, val);
+    AdapterConfig::instance()->setBoolProperty(PAR_CAN_TIMEOUT_MULT, val);
     AdptSendReply(OkMessage);
 }
 
@@ -487,11 +503,13 @@ static void SetDefault()
     config->setBoolProperty(PAR_CAN_DLC, false);
     config->setBoolProperty(PAR_CAN_FLOW_CONTROL, true);
     config->setBoolProperty(PAR_AUTO_RECEIVE, true);
+    config->setBoolProperty(PAR_CAN_TIMEOUT_MULT, false);
+    config->setBoolProperty(PAR_CAN_SILENT_MODE, true);
+    config->setBoolProperty(PAR_J1939_HEADER, true);
     config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
     config->setIntProperty(PAR_WAKEUP_VAL, (DEFAULT_WAKEUP_TIME / 20));
     config->setIntProperty(PAR_CAN_TSTR_ADDRESS, TESTER_ADDRESS);
     config->setIntProperty(PAR_CAN_TSTR_ADDRESS, 0xF1);
-    config->setIntProperty(PAR_CAN_TIMEOUT_MULT, 1);
 }
 
 /**
@@ -559,14 +577,14 @@ static const DispatchType dispatchTbl[] = {
     { "CRA",    PAR_CAN_SET_ADDRESS,   3,  3, OnCanSetReceiveAddress },
     { "CRA",    PAR_CAN_SET_ADDRESS,   8,  8, OnCanSetReceiveAddress },
     { "CS",     PAR_CAN_SHOW_STATUS,   0,  0, OnCanShowStatus        },
-    { "CSM0",   PAR_CAN_MONITORING,    0,  0, OnSetValueFalse        },
-    { "CSM1",   PAR_CAN_MONITORING,    0,  0, OnSetValueTrue         },
+    { "CSM0",   PAR_CAN_SILENT_MODE,   0,  0, OnSetValueFalse        },
+    { "CSM1",   PAR_CAN_SILENT_MODE,   0,  0, OnSetValueTrue         },
     { "CTM",    PAR_CAN_TIMEOUT_MULT,  1,  1, OnCanSetTimeoutMult    },
     { "CV",     PAR_CALIBRATE_VOLT,    4,  4, OnSetOK                },
     { "D",      PAR_SET_DEFAULT,       0,  0, OnSetDefault           },
     { "D0",     PAR_CAN_DLC,           0,  0, OnSetValueFalse        },
     { "D1",     PAR_CAN_DLC,           0,  0, OnSetValueTrue         },
-    { "DM1",    PAR_J1939_DM1_MONITOR, 0,  0, OnSetOK                },
+    { "DM1",    PAR_J1939_DM1_MONITOR, 0,  0, OnJ1939MonitorDM1      },
     { "DP",     PAR_DESCRIBE_PROTOCOL, 0,  0, OnProtocolDescribe     },
     { "DPN",    PAR_DESCRIBE_PROTCL_N, 0,  0, OnProtocolDescribeNum  },
     { "E0",     PAR_ECHO,              0,  0, OnSetValueFalse        },
@@ -583,12 +601,11 @@ static const DispatchType dispatchTbl[] = {
     { "IB",     PAR_ISO_BAUDRATE,      2,  2, OnSetIsoBaudRate       },
     { "IFR",    PAR_INFRAME_RESPONSE,  1,  1, OnSetOK                },
     { "IIA",    PAR_ISO_INIT_ADDRESS,  2,  2, OnSetValueInt          },
-    { "JE",     PAR_J1939_FMT,         0,  0, OnSetValueTrue         },
+    { "JE",     PAR_J1939_FMT,         0,  0, OnSetValueFalse        },
     { "JHF0",   PAR_J1939_HEADER,      0,  0, OnSetValueFalse        },
     { "JHF1",   PAR_J1939_HEADER,      0,  0, OnSetValueTrue         },
-    { "JS",     PAR_J1939_FMT,         0,  0, OnSetValueFalse        },
-    { "JTM1",   PAR_J1939_MLTPR5,      0,  0, OnSetValueFalse        },
-    { "JTM5",   PAR_J1939_MLTPR5,      0,  0, OnSetValueTrue         },
+    { "JS",     PAR_J1939_FMT,         0,  0, OnSetValueTrue         },
+    { "JTM",    PAR_CAN_TIMEOUT_MULT,  1,  1, OnCanSetTimeoutMult    },
     { "KW",     PAR_KW_DISPLAY,        0,  0, OnKwDisplay            },
     { "KW0",    PAR_KW_CHECK,          0,  0, OnSetValueFalse        },
     { "KW1",    PAR_KW_CHECK,          0,  0, OnSetValueTrue         },
@@ -597,7 +614,7 @@ static const DispatchType dispatchTbl[] = {
     { "LP",     PAR_LOW_POWER_MODE,    0,  0, OnSetOK                },
     { "M0",     PAR_MEMORY,            0,  0, OnSetValueFalse        },
     { "M1",     PAR_MEMORY,            0,  0, OnSetValueTrue         },
-    { "MP",     PAR_J1939_MONITOR,     4,  7, OnJ1939Monitor         },
+    { "MP",     PAR_J1939_MONITOR,     4,  7, OnJ1939MonitorMP       },
     { "NL",     PAR_ALLOW_LONG,        0,  0, OnSetValueTrue         },
     { "PB",     PAR_USER_B,            4,  4, OnSetBytes             },
     { "PC",     PAR_PROTOCOL_CLOSE,    0,  0, OnProtocolClose        },

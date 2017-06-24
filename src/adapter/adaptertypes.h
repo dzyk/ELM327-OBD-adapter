@@ -45,9 +45,10 @@ enum AT_Requests {
     PAR_CAN_CAF,
     PAR_CAN_DLC,
     PAR_CAN_FLOW_CONTROL,
-    PAR_CAN_MONITORING,
     PAR_CAN_SEND_RTR,
     PAR_CAN_SHOW_STATUS,
+    PAR_CAN_SILENT_MODE,
+    PAR_CAN_TIMEOUT_MULT,
     PAR_CAN_VAIDATE_DLC,
     PAR_CHIP_COPYRIGHT,
     PAR_DESCRIBE_PROTCL_N,
@@ -64,7 +65,6 @@ enum AT_Requests {
     PAR_J1939_DM1_MONITOR,
     PAR_J1939_FMT,
     PAR_J1939_HEADER,
-    PAR_J1939_MLTPR5,
     PAR_J1939_MONITOR,
     PAR_KW_CHECK,
     PAR_KW_DISPLAY,
@@ -89,14 +89,12 @@ enum AT_Requests {
     PAR_CAN_CFCPA = INT_PROPS_START,
     PAR_CAN_FLOW_CTRL_MD,
     PAR_CAN_SET_ADDRESS,
-    PAR_CAN_TIMEOUT_MULT,
     PAR_CAN_TSTR_ADDRESS,
     PAR_ISO_INIT_ADDRESS,
     PAR_PROTOCOL,
     PAR_RECEIVE_ADDRESS,
     PAR_RECEIVE_FILTER,
     PAR_SET_BRD,
-    PAR_TESTER_ADDRESS,
     PAR_TIMEOUT,
     PAR_TRY_BRD,
     PAR_WAKEUP_VAL,
@@ -109,6 +107,7 @@ enum AT_Requests {
     PAR_CAN_MASK,
     PAR_CAN_PRIORITY_BITS,
     PAR_HEADER_BYTES,
+    PAR_TESTER_ADDRESS,
     PAR_USER_B,
     PAR_WM_HEADER,
     BYTES_PROPS_END
@@ -131,6 +130,9 @@ union IntAggregate
     }
 };
 
+//
+// Byte array container for storing byte properties
+//
 struct ByteArray {
     const static int ARRAY_SIZE = 7;
     ByteArray() : length(0) { 
@@ -173,6 +175,23 @@ private:
     ByteArray  bytesProps_[BYTES_PROP_LEN];
 };
 
+//
+// Helper class for insering spaces, depends on ATS0/ATS1
+//
+class Spacer {
+public:
+    Spacer(util::string& str) : str_(str) {
+        spaces_ = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
+    }
+    Spacer(util::string& str, bool spaces) : str_(str), spaces_(spaces) {}
+    void space() { if (spaces_) str_ += ' '; }
+    bool isSpaces() const { return spaces_; }
+private:
+    util::string& str_;
+    bool spaces_;
+};
+
+
 void AdptSendString(const util::string& str);
 void AdptSendReply(const util::string& str);
 void AdptSendReply2(util::string& str);
@@ -187,7 +206,9 @@ void Delay1ms(uint32_t value);
 void Delay1us(uint32_t value);
 void KWordsToString(const uint8_t* kw, util::string& str);
 void CanIDToString(uint32_t num, util::string& str, bool extended);
+void CanIDToString(uint32_t num, util::string& str, bool extended, bool spaces);
 void AutoReceiveParse(const util::string& str, uint32_t& filter, uint32_t& mask);
+void ReverseBytes(uint8_t* bytes, uint32_t length);
 
 uint32_t to_bytes(const util::string& str, uint8_t* bytes);
 void to_ascii(const uint8_t* bytes, uint32_t length, util::string& str);

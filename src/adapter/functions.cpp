@@ -19,9 +19,11 @@ using namespace util;
  * @param[in]  num The number to convert
  * @param[out] str The output string
  * @param[in]  extended CAN 29 bit flag
+ * @param[in]  spaces Use spaces flag
  */
-void CanIDToString(uint32_t num, string& str, bool extended)
+void CanIDToString(uint32_t num, string& str, bool extended, bool spaces)
 {
+    Spacer spacer(str, spaces);
     IntAggregate value(num);
 
     if (!extended) { // 11 bit standard CAN identifier
@@ -30,22 +32,30 @@ void CanIDToString(uint32_t num, string& str, bool extended)
         str += to_ascii(value.bvalue[0] & 0x0F);
     }
     else { // 29 bit extended CAN identifier
-        bool useSpaces = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
         str += to_ascii(value.bvalue[3] >> 4);
         str += to_ascii(value.bvalue[3] & 0x0F);
-        if (useSpaces)
-            str += ' ';
+        spacer.space();
         str += to_ascii(value.bvalue[2] >> 4);
         str += to_ascii(value.bvalue[2] & 0x0F);
-        if (useSpaces)
-            str += ' ';
+        spacer.space();
         str += to_ascii(value.bvalue[1] >> 4);
         str += to_ascii(value.bvalue[1] & 0x0F);
-        if (useSpaces)
-            str += ' ';
+        spacer.space();
         str += to_ascii(value.bvalue[0] >> 4);
         str += to_ascii(value.bvalue[0] & 0x0F);
     }
+}
+
+/**
+ * Do Binary/ASCII conversion for CAN identifier
+ * @param[in]  num The number to convert
+ * @param[out] str The output string
+ * @param[in]  extended CAN 29 bit flag
+ */
+void CanIDToString(uint32_t num, string& str, bool extended)
+{
+    bool useSpaces = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
+    CanIDToString(num, str, extended, useSpaces);
 }
 
 /**
@@ -133,15 +143,13 @@ uint32_t to_bytes(const string& str, uint8_t* bytes)
  **/
 void to_ascii(const uint8_t* bytes, uint32_t length, string& str)
 {
-    bool useSpaces = AdapterConfig::instance()->getBoolProperty(PAR_SPACES);
+    Spacer spacer(str);
     for (int i = 0; i < length; i++) {
         str += to_ascii(bytes[i] >> 4);
         str += to_ascii(bytes[i] & 0x0F);
-        if (useSpaces) {
-            str += ' ';
-        }
+        spacer.space();
     }
-    if (useSpaces && str.length() > 0) {
+    if (spacer.isSpaces() && str.length() > 0) {
         str.resize(str.length() - 1); // Truncate the last space
     }
 }
@@ -192,5 +200,20 @@ void AutoReceiveParse(const string& str, uint32_t& filter_, uint32_t& mask_)
         mask &= 0x1FFFFFFF;
         mask_ = reverse4bytes(mask);
         filter_= reverse4bytes(filter);
+    }
+}
+
+/**
+ * Generic byte order reversal algorithm
+ * @param[in] bytes The byte array to revert
+ * @param[in] length The buffer length
+ **/
+void ReverseBytes(uint8_t* bytes, uint32_t length)
+{
+    int end = length - 1;
+    for (int i = 0; i < end; i++) {
+        uint8_t tmp = bytes[i];
+        bytes[i] = bytes[end];
+        bytes[end--] = tmp;
     }
 }

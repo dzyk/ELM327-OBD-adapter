@@ -31,15 +31,16 @@ enum ReplyTypes {
 //
 enum ProtocolTypes {
    PROT_AUTO = 0,
-   PROT_J1850_PWM,
-   PROT_J1850_VPW,
-   PROT_ISO9141,
-   PROT_ISO14230_5BPS,
-   PROT_ISO14230,
-   PROT_ISO15765_1150,
-   PROT_ISO15765_2950,
-   PROT_ISO15765_1125,
-   PROT_ISO15765_2925,
+   PROT_J1850_PWM = 1,
+   PROT_J1850_VPW = 2,
+   PROT_ISO9141 = 3,
+   PROT_ISO14230_5BPS = 4,
+   PROT_ISO14230 = 5,
+   PROT_ISO15765_1150 = 6,
+   PROT_ISO15765_2950 = 7,
+   PROT_ISO15765_1125 = 8,
+   PROT_ISO15765_2925 = 9,
+   PROT_J1939 = 0x0A,
    PROT_ISO15765_USR_B = 0x0B
 };
 
@@ -51,7 +52,8 @@ enum AdapterTypes {
    ADPTR_VPW,
    ADPTR_ISO,
    ADPTR_CAN,
-   ADPTR_CAN_EXT
+   ADPTR_CAN_EXT,
+   ADPTR_J1939
 };
 
 class ProtocolAdapter {
@@ -72,6 +74,8 @@ public:
     virtual void kwDisplay() {}
     virtual void setFilterAndMask() {}
     bool isConnected() const { return connected_; }
+    virtual void monitor() {}
+    virtual void monitor(const uint8_t* data, uint32_t len, uint32_t numOfResp) {}
     void setStatus(int sts) { sts_ = sts; }
     int getStatus() const { return sts_; }
     static void clearHistory();

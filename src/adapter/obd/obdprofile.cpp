@@ -102,6 +102,9 @@ int OBDProfile::setProtocol(int num, bool refreshConnection)
         case PROT_ISO15765_2950:
             adapter_ = ProtocolAdapter::getAdapter(ADPTR_CAN_EXT);
             break;
+        case PROT_J1939:
+            adapter_ = ProtocolAdapter::getAdapter(ADPTR_J1939);
+            break;
         default:
             return REPLY_CMD_WRONG;
     }
@@ -308,6 +311,41 @@ void OBDProfile::setFilterAndMask()
     adapter_->setFilterAndMask();
 }
  
+
+/**
+ * Pass to J1939 layer for ATDM1 monitoring
+ */
+void OBDProfile::monitor()
+{
+	adapter_->monitor();
+}
+
+/**
+ * Pass to J1939 layer for ATMP monitoring
+ * @param[in] cmdString The command
+ */
+void OBDProfile::monitor(const util::string& cmdString)
+{
+    const int ATMP_LEN = 6;
+    uint8_t data[ATMP_LEN];
+
+    // Buffer overrun check
+    uint32_t cmdLen = cmdString.length();
+    if (cmdLen > (sizeof(data) * 2)) {
+        return;
+    }
+    
+    uint32_t numOfResp = numOfFrames(cmdString, cmdLen);
+    int len = to_bytes(cmdString, data);
+
+    // Valid request length?
+    if (!sendLengthCheck(data, len)) {
+        return;
+    }
+
+	adapter_->monitor(data, len, numOfResp);
+}
+
 /**
  * Constructs ProtocolAdater
  */
@@ -317,3 +355,4 @@ ProtocolAdapter::ProtocolAdapter()
     sts_ = REPLY_NO_DATA;
     config_ = AdapterConfig::instance();
 }
+

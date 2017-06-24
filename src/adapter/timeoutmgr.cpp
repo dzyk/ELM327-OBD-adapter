@@ -6,21 +6,16 @@
  */
 
 #include <adaptertypes.h>
+#include <algorithms.h>
 #include "timeoutmgr.h"
-#include <lstring.h>
+//#include <lstring.h>
 
 const uint32_t AT1_VALUE  = 30;
 const uint32_t AT2_VALUE  = 10;
 const uint32_t THRESHOLD  =  2;
 const uint32_t DEFAULT_TIMEOUT = 200; // Default setting for ELM327
 
-template <class T> const T& max(const T& a, const T& b) {
-    return (a < b) ? b : a;
-}
-
-template <class T> const T& min(const T& a, const T& b) {
-    return (a < b) ? a : b;
-}
+using namespace util;
 
 /**
  * Construct the TimeoutManager object
@@ -51,6 +46,15 @@ void TimeoutManager::p2Timeout(uint32_t val)
     else {
         timeout_ = min(max(timeout_, val), at0Timeout());
     }
+    
+#ifdef DEBUG_TM_VAL
+    uint8_t data[2];
+    util::string str;
+    data[0] = val & 0xFF;
+    data[1] = timeout_ & 0xFF;
+    to_ascii(data, 2, str);
+    AdptSendReply2(str);
+#endif
 }
 	
 /**
@@ -73,6 +77,13 @@ uint32_t TimeoutManager::p2Timeout() const
 		default:
 			timeout = at0Timeout();
     }
+#ifdef DEBUG_TM_VAL2
+    uint8_t data[2];
+    util::string str;
+    data[0] = timeout & 0xFF;
+    to_ascii(data, 1, str);
+    AdptSendReply2(str);
+#endif
     return timeout;
 }
 
@@ -81,8 +92,10 @@ uint32_t TimeoutManager::p2Timeout() const
  */
 uint32_t TimeoutManager::at0Timeout() const
 {
-    int p2Timeout = AdapterConfig::instance()->getIntProperty(PAR_TIMEOUT); 
-    return p2Timeout ? (p2Timeout * 4) : DEFAULT_TIMEOUT; 
+    uint32_t p2Timeout = AdapterConfig::instance()->getIntProperty(PAR_TIMEOUT); 
+    bool timeoutMult = AdapterConfig::instance()->getBoolProperty(PAR_CAN_TIMEOUT_MULT);
+    uint32_t timeoutMultVal = timeoutMult ? 5 : 1;
+    return p2Timeout ? (p2Timeout * 4 * timeoutMultVal) : DEFAULT_TIMEOUT; 
 }
 
 /**

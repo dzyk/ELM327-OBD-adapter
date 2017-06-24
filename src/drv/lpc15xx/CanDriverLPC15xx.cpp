@@ -25,8 +25,11 @@ const uint32_t PinAssign = ((RxPin << 16) + (RxPort * 32)) | ((TxPin << 8)  + (T
 const uint32_t CAN_MSGOBJ_STD = 0x00000000;
 const uint32_t CAN_MSGOBJ_EXT = 0x20000000;
 const int FIFO_NUM = 10;
+
+// Driver static variables
 CAN_HANDLE_T CanDriver::handle_;
 static volatile uint32_t msgBitMask;
+static volatile bool txInProgress;
 
 // C-CAN callbacks
 extern "C" {
@@ -45,6 +48,9 @@ extern "C" {
 
     void CAN_tx(uint8_t msgObjNum)
     {
+        // Clear transmission in progress flag
+        txInProgress = false;
+        
         // Blink LED from here, when TX operation is completed
         AdptLED::instance()->blinkTx();
     }
@@ -136,16 +142,33 @@ CanDriver* CanDriver::instance()
 /**
  * Intialize the CAN controller and interrupt handler
  */
-CanDriver::CanDriver()
+CanDriver::CanDriver() : speed_(-1)
+{
+    // Enable the CAN Interrupt
+    NVIC_EnableIRQ(C_CAN0_IRQn);
+    msgBitMask = 0;
+}
+
+void CanDriver::setSpeed(int speed)
 {
     const int MAX_CAN_PARAM_SIZE = 124;
     static uint32_t canApiMem[MAX_CAN_PARAM_SIZE];
+    
+    if(speed_ == speed) // Nothing to update
+        return;
 
-    // Initialize the CAN controller 500kbps
-    // tq=125nS, T1=12, T2=3, SJW=3, 500 kBit/s
-    CAN_CFG canConfig = { 0, 0x00002B85UL, 1 };
+    // Initialize the CAN controller for ISO15765_CAN_500K/J1939_CAN_250K
+    //
+    //   ISO15765_CAN_500K: tq=125nS, T1=12, T2=3, SJW=3, 500 kBit/s
+    //
+    //   J1939_CAN_250K:    tq=250nS, T1=13, T2=2, SJW=1, 250 kBit/s
+    //
+    //-------------------------------------------------------------------
+    const uint32_t btr = (speed == ISO15765_CAN_500K) ? 0x00002BC5 : 0x00001C4B;
+    
+    CAN_CFG canConfig = { 0, btr, 1 };
     CAN_CALLBACKS callbacks = { &CAN_rx, &CAN_tx, &CAN_error };
-
+    
     CAN_API_INIT_PARAM_T apiInitCfg = {
         reinterpret_cast<uint32_t>(canApiMem),
         LPC_C_CAN0_BASE,
@@ -160,9 +183,7 @@ CanDriver::CanDriver()
             __WFI(); // Go to sleep
         }
     }
-
-    // Enable the CAN Interrupt
-    NVIC_EnableIRQ(C_CAN0_IRQn);
+    speed_ = speed;
 }
 
 /**
@@ -174,20 +195,13 @@ bool CanDriver::send(const CanMsgBuffer* buff)
 {
     static CAN_MSG_OBJ msg;
 
-    //Send using msgobj 0
+    //Send CAN frame using msgobj=0
     CanMsg2Native(buff, &msg, 0);
 
-    // Note: can_transmit seems to be non-blocking call,
-    // allocate CAN_MSG_OBJ on the heap for now.
-    // Would need to use CAN_tx() status callback to make a blocking call
-#ifdef WAIT_FOR_TRANSMISSION_COMPLETE
-    uint32_t checkMask = 0x1 << msg.msgobj;
-    while (LPC_CAN->TXRQST & checkMask) {
-        ;
-    }
-#endif
-
+    txInProgress = true;
     LPC_CAND_API->hwCAN_MsgTransmit(handle_, &msg);
+    while (txInProgress)
+        ;
     return true;
 }
 
@@ -214,7 +228,7 @@ void CanDriver::configRxMsgobj(uint32_t filter, uint32_t mask, uint8_t msgobj, b
 }
 
 /**
- * Set the CAN filter for FIFO buffer
+ * Set the CAN filter/mask for FIFO buffer
  * @parameter   filter    CAN filter value
  * @parameter   mask      CAN mask value
  * @parameter   extended  CAN extended message flag
@@ -223,7 +237,7 @@ void CanDriver::configRxMsgobj(uint32_t filter, uint32_t mask, uint8_t msgobj, b
 bool CanDriver::setFilterAndMask(uint32_t filter, uint32_t mask, bool extended)
 {
     // Set the FIFO buffer, starting with obj 1
-    for (int msgobj = 1; msgobj <= FIFO_NUM; msgobj++) {
+    for (uint8_t msgobj = 1; msgobj <= FIFO_NUM; msgobj++) {
         bool fifoLast = (msgobj == FIFO_NUM);
         configRxMsgobj(filter, mask, msgobj, extended, fifoLast);
         if (!fifoLast) {
@@ -234,12 +248,53 @@ bool CanDriver::setFilterAndMask(uint32_t filter, uint32_t mask, bool extended)
 }
 
 /**
+ * Set all FIFO filters to non-working combination to prevent receiving any messsages
+ */
+void CanDriver::clearFilters()
+{
+    setFilterAndMask(0x1FFFFFFF, 0x1FFFFFFF, true);
+}
+
+/**
+ * Clear all the message buffers except 0, used for transmit
+ */
+void CanDriver::clearData()
+{
+    CAN_MSG_OBJ msg;
+    for (int i = 1; i < 32; i++) {
+        msg.dlc = msg.mode_id = 0;
+        msg.msgobj = i;
+        LPC_CAND_API->hwCAN_MsgReceive(CanDriver::handle_, &msg);
+    }
+    msgBitMask = 0;
+}
+
+/**
+ * Set a single CAN filter/mask
+ * @parameter   filter    CAN filter value
+ * @parameter   mask      CAN mask value
+ * @parameter   extended  CAN extended message flag
+ * @parameter   msgobj    CAN message object number
+ * @return  the operation completion status
+ */
+bool CanDriver::setFilterAndMask(uint32_t filter, uint32_t mask, bool extended, int msgobj)
+{
+    if (msgobj > 0 && msgobj < 6) {
+        configRxMsgobj(filter, mask, msgobj, extended, true);
+        return true;
+    }
+    return false;
+}
+
+/**
  * Read the CAN frame from FIFO buffer
  * @return  true if read the frame / false if no frame
  */
 bool CanDriver::read(CanMsgBuffer* buff)
 {
     CAN_MSG_OBJ msg;
+    msg.mode_id = 0xFFFFFFFF;
+    msg.dlc = 0;
     uint32_t mask = msgBitMask;
     for (int i = 1; i < 32; i++) {
         uint32_t val = 1 << i;
@@ -248,7 +303,7 @@ bool CanDriver::read(CanMsgBuffer* buff)
             msg.msgobj = i;
             LPC_CAND_API->hwCAN_MsgReceive(CanDriver::handle_, &msg);
             CanNative2Msg(&msg, buff);
-            return true;
+            return (msg.mode_id != 0xFFFFFFFF);
         }
     }
     return false;
@@ -312,4 +367,22 @@ void CanDriver::setBit(uint32_t bit)
 uint32_t CanDriver::getBit()
 {
     return GPIOPinRead(RxPort, RxPin);
+}
+
+/**
+ * Switch on/off CAN and let the CAN pins controlled directly (testing mode)
+ * @parameter  val  CAN silent mode flag 
+ */
+void CanDriver::setSilent(bool val)
+{
+    const uint32_t CANCTRL_TEST   = (1 << 7); // CAN CTRL register
+    const uint32_t CANTEST_SILENT = (1 << 3); // CAN TEST register
+
+    if (val) {
+        LPC_C_CAN0->CANCNTL |= CANCTRL_TEST;   // Enable test mode
+        LPC_C_CAN0->CANTEST |= CANTEST_SILENT; // Enable silent
+    }
+    else {
+        LPC_C_CAN0->CANCNTL &= ~CANCTRL_TEST;  // Disable test mode
+    }
 }

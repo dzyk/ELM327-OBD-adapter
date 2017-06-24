@@ -27,6 +27,8 @@ public:
     bool ready() const { return ready_; }
     void ready(bool val) { ready_ = val; }
     void handler(UartRecvHandler handler) { handler_ = handler; }
+    void monitor(bool val);
+    bool isMonitorExit() const { return monitorExit_; }
 private:
     CmdUart();
     void txIrqHandler();
@@ -38,6 +40,8 @@ private:
     uint16_t        txPos_;
     volatile bool   ready_;
     UartRecvHandler handler_;
+    bool            monitor_;
+    volatile bool   monitorExit_;
 };
 
 

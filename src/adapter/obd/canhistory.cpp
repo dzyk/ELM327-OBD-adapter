@@ -42,7 +42,7 @@ void CanHistory::dumpCurrentBuffer()
     
     do {
         out.resize(0);
-        CanIDToString(msglog_[i].id, out, extended);
+        CanIDToString(msglog_[i].id, out, extended, false);
         out.resize(pos1, ' ');
         out += msglog_[i].dir ? 'S' : 'R';
         out.resize(pos2, ' ');

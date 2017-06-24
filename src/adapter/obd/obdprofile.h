@@ -27,6 +27,8 @@ public:
     void wiringCheck();
     int kwDisplay();
     void setFilterAndMask();
+    void monitor();
+    void monitor(const util::string& cmdString);
 private:
     bool sendLengthCheck(const uint8_t* msg, int len);
     int onRequestImpl(const util::string& cmdString);

@@ -30,6 +30,7 @@ ProtocolAdapter* ProtocolAdapter::getAdapter(int adapterType)
     static IsoSerialAdapter isoAdapter;
     static IsoCan11Adapter canAdapter;
     static IsoCan29Adapter canExtAdapter;
+    static J1939Adapter j1939Adapter;
 
     switch (adapterType) {
         case ADPTR_AUTO:
@@ -44,6 +45,8 @@ ProtocolAdapter* ProtocolAdapter::getAdapter(int adapterType)
             return &canAdapter;
         case ADPTR_CAN_EXT:
             return &canExtAdapter;
+        case ADPTR_J1939:
+            return &j1939Adapter;
         default:
             return nullptr;
     }

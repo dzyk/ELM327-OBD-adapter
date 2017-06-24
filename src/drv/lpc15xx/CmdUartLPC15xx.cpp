@@ -25,7 +25,9 @@ CmdUart::CmdUart()
   : txLen_(0),
     txPos_(0),
     ready_(false),
-    handler_(0)
+    handler_(0),
+    monitor_(false),
+    monitorExit_(false)
 {
 }
 
@@ -114,10 +116,13 @@ void CmdUart::rxIrqHandler()
         return;
 
     uint8_t ch = UARTReadByte(LPC_USART0);
-    if (handler_)
+    if (handler_ && !monitor_) {
         ready_ = (*handler_)(ch);
+    }
+    else if(monitor_) {
+        monitorExit_ = true;
+    }
 }
-
 
 /**
  * CmdUart IRQ handler
@@ -131,7 +136,6 @@ void CmdUart::irqHandler()
         rxIrqHandler();
     }
 }
-
 
 /**
  * Send one character, blocking call for echo purposes
@@ -160,6 +164,17 @@ void CmdUart::send(const util::string& str)
     txLen_ = str.length();
     memcpy(txData_, str.c_str(), txLen_);
     UARTIntEnable(LPC_USART0, UART_INTEN_TXRDY);
+}
+
+void CmdUart::monitor(bool val)
+{
+    if (val) {
+        monitor_ = true;
+    }
+    else {
+        monitor_ = false;
+    }
+    monitorExit_ = false;
 }
 
 /**

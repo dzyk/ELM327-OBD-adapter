@@ -25,9 +25,9 @@ public:
     void p2Timeout(uint32_t timeout);
     void reset() { timeout_ = 0, threshold_ = 0; }
     uint32_t p2Timeout() const;
+    uint32_t at0Timeout() const;
 private:
     TimeoutManager();
-    uint32_t at0Timeout() const;
     uint32_t at1Timeout() const;
     uint32_t at2Timeout() const;
     int mode_;
