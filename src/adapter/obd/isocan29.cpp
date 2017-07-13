@@ -84,7 +84,7 @@ void IsoCan29Adapter::setFilterAndMask()
  **/
 void IsoCan29Adapter::processFlowFrame(const CanMsgBuffer* msg)
 {
-    CanMsgBuffer ctrlData(getID(), true, 8, 0x30, 0x0, 0x00);
+    CanMsgBuffer ctrlData(0x18DA00F1, true, 8, 0x30, 0x0, 0x00);
     ctrlData.id |= (msg->id & 0xFF) << 8;
     driver_->send(&ctrlData);
     

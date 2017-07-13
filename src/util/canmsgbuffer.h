@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2017 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -17,7 +17,7 @@ using namespace std;
 //
 
 struct CanMsgBuffer {
-    const static uint8_t DefaultByte = 0x55;
+    const static uint8_t DefaultByte = 0x00;
     CanMsgBuffer();
     CanMsgBuffer(uint32_t _id, bool _extended, uint8_t _dlc, 
         uint8_t _data0, 

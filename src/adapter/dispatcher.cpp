@@ -23,7 +23,7 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.12";
+static const char Version    [] = "1.13";
 static const char Interface  [] = "ELM327 v2.1";
 static const char Copyright  [] = "Copyright (c) 2009-2017 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";

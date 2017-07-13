@@ -105,12 +105,12 @@ void IsoCan11Adapter::processFlowFrame(const CanMsgBuffer* msg)
     const ByteArray* hdr = config_->getBytesProperty(PAR_CAN_FLOW_CTRL_HDR);
     const ByteArray* bytes = config_->getBytesProperty(PAR_CAN_FLOW_CTRL_DAT);
     
-    CanMsgBuffer ctrlData(getID(), false, 8, 0x30, 0x00, 0x00);
+    CanMsgBuffer ctrlData(0x7E0, false, 8, 0x30, 0x00, 0x00);
     ctrlData.id |= (msg->id & 0x07);
-    if(flowMode == 1) {
+    if(flowMode == 1 && hdr != nullptr) {
         ctrlData.id = hdr->asCanId() & 0x7FF;
     }
-    if(flowMode > 0) {
+    if(flowMode > 0 && bytes != nullptr) {
         memset(ctrlData.data, CanMsgBuffer::DefaultByte, sizeof(ctrlData.data));
         memcpy(ctrlData.data, bytes->data, bytes->length);
     }
