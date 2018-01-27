@@ -275,7 +275,7 @@ int OBDProfile::getProtocol() const
 
 void OBDProfile::closeProtocol()
 {
-    adapter_->close();
+    adapter_->closeProtocol();
 }
 
 /**
@@ -345,3 +345,14 @@ void OBDProfile::monitor(const util::string& cmdString)
 
 	adapter_->monitor(data, len, numOfResp);
 }
+
+/**
+ * Constructs ProtocolAdater
+ */
+ProtocolAdapter::ProtocolAdapter()
+{ 
+    connected_ = false;
+    sts_ = REPLY_NO_DATA;
+    config_ = AdapterConfig::instance();
+}
+

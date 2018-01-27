@@ -65,8 +65,9 @@ public:
     virtual void getDescriptionNum() = 0;
     virtual void dumpBuffer();
     virtual void setProtocol(int protocol) { connected_ = true; }
+    virtual void closeProtocol() { connected_ = false; }
     virtual void open() { connected_ = false; }
-    virtual void close();
+    virtual void close() {}
     virtual void wiringCheck() = 0;
     virtual void sendHeartBeat() {}
     virtual int getProtocol() const = 0;

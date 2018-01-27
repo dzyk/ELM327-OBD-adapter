@@ -29,7 +29,7 @@ int AutoAdapter::doConnect(int protocol, bool sendReply)
     ProtocolAdapter* adapter = ProtocolAdapter::getAdapter(protocol);
     protocol = adapter->onConnectEcu(sendReply);
     if (protocol != 0) {
-        sts_ = adapter->getStatus();
+        setStatus(adapter->getStatus());
         return protocol;
     }
     return 0;
@@ -38,8 +38,6 @@ int AutoAdapter::doConnect(int protocol, bool sendReply)
 int AutoAdapter::onConnectEcu(bool sendReply)
 {
     int protocol = 0;
-    connected_ = false;
-    sts_ = REPLY_NO_DATA;
     
     // PWM
     protocol = doConnect(ADPTR_PWM, sendReply);

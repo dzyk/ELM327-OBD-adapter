@@ -20,7 +20,6 @@ public:
     virtual void getDescription();
     virtual void getDescriptionNum();
     virtual void open();
-    virtual void close();
     virtual void wiringCheck();
     virtual int onConnectEcu(bool sendReply);
     virtual int getProtocol() const { return PROT_J1850_PWM; }

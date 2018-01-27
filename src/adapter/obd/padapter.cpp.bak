@@ -18,21 +18,6 @@ uint8_t ProtocolAdapter::history_[];
 int     ProtocolAdapter::historyPos_;
 
 /**
- * Constructs ProtocolAdater
- */
-ProtocolAdapter::ProtocolAdapter()
-{ 
-    config_ = AdapterConfig::instance();
-    close();
-}
-
-void ProtocolAdapter::close()
-{
-    connected_ = false;
-    sts_ = REPLY_NO_DATA;
-}
-
-/**
  * ProtocolAdapter object factory
  * @param[in] adapterType The adapter type number
  * @return The ProtocolAdapter pointer

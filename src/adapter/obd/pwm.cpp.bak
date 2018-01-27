@@ -35,6 +35,14 @@ void PwmAdapter::open()
 }
 
 /**
+ * On adapter close
+ */
+void PwmAdapter::close()
+{
+    connected_ = false;
+}
+
+/**
  * Send a byte over PWM
  * @param[in] val Byte to send
  * @returns true if OK, false if arbitration was lost

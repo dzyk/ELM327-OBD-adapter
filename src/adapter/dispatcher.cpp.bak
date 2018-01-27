@@ -23,9 +23,9 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.14";
+static const char Version    [] = "1.13";
 static const char Interface  [] = "ELM327 v2.1";
-static const char Copyright  [] = "Copyright (c) 2009-2018 ObdDiag.Net";
+static const char Copyright  [] = "Copyright (c) 2009-2017 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
 static const char Copyright3 [] = "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.";
 
@@ -499,7 +499,7 @@ static void SetDefault()
     config->setBoolProperty(PAR_ECHO, true);
     config->setBoolProperty(PAR_SPACES, true);
     config->setBoolProperty(PAR_USE_AUTO_SP, true);
-    config->setBoolProperty(PAR_KW_CHECK, true);
+    config->setBoolProperty(PAR_KW_CHECK, false);
     config->setBoolProperty(PAR_CAN_DLC, false);
     config->setBoolProperty(PAR_CAN_FLOW_CONTROL, true);
     config->setBoolProperty(PAR_AUTO_RECEIVE, true);
@@ -530,6 +530,7 @@ static void OnSetDefault(const string& cmd, int par)
  */
 static void OnReset(const string& cmd, int par) 
 {
+    OBDProfile::instance()->closeProtocol();
     SetDefault();
     ProtocolAdapter::clearHistory();
     AdptSendReply(Interface);

@@ -35,6 +35,14 @@ void VpwAdapter::open()
 }
 
 /**
+ * On adapter close
+ */
+void VpwAdapter::close()
+{
+    connected_ = false;
+}
+
+/**
  * Send buffer to ECU using VPW
  * @param[in] msg Message to send
  * @return  1 if success, -1 if arbitration lost, 0 if bus busy
