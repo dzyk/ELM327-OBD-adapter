@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -23,7 +23,7 @@ using namespace util;
 //
 static const char ErrMessage [] = "?";
 static const char OkMessage  [] = "OK";
-static const char Version    [] = "1.14";
+static const char Version    [] = "1.15";
 static const char Interface  [] = "ELM327 v2.1";
 static const char Copyright  [] = "Copyright (c) 2009-2018 ObdDiag.Net";
 static const char Copyright2 [] = "This is free software; see the source for copying conditions. There is NO";
@@ -661,22 +661,22 @@ static bool DispatchATCmd(const string& cmdString, int numOfChar, bool extraPar)
      // Ignore first two "AT" chars
     string atcmd = extraPar ? cmdString.substr(2, numOfChar) : cmdString.substr(2);
 
-    for (int i = 0; i < sizeof(dispatchTbl)/sizeof(dispatchTbl[0]); i++) {
-        bool cmdType = dispatchTbl[i].minParNum > 0;
+    for (const DispatchType& dt : dispatchTbl) {
+        bool cmdType = dt.minParNum > 0;
         
-        if ((cmdType == extraPar) && (atcmd == dispatchTbl[i].name)) {
+        if ((cmdType == extraPar) && (atcmd == dt.name)) {
             string arg = extraPar ? cmdString.substr(numOfChar + 2) : "";
 
             // Argument length validation if we have an argument
-            if (extraPar && !ValidateArgLength(dispatchTbl[i], arg)) {
+            if (extraPar && !ValidateArgLength(dt, arg)) {
                 continue;
             }
             
             // Have callback?
-            if (!dispatchTbl[i].callback)
+            if (!dt.callback)
                 return false;
             
-            dispatchTbl[i].callback(arg, dispatchTbl[i].id);
+            dt.callback(arg, dt.id);
             return true;
         }
     }
@@ -761,31 +761,36 @@ void AdptCheckHeartBeat()
  * Send out string with <CR><LF>
  * @param[in] str String to send
  */
+void AdptSendReply(const char* str)
+{
+	string s(strlen(str) + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
+    s = str;
+    AdptSendReply(s);
+}
+
+/**
+ * Send out string with <CR><LF>
+ * @param[in] str String to send
+ */
 void AdptSendReply(const string& str)
 {
-    string s = str;
-    if (AdapterConfig::instance()->getBoolProperty(PAR_LINEFEED)) {
-        s += "\r\n";
-        AdptSendString(s);
-    }
-    else {
-        s += "\r";
-        AdptSendString(s);
-    }
+	string s(str.length() + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
+    s = str;
+    AdptSendReply(s); // use the next one
 }
 
 /**
  * Send out string with <CR><LF>, do not a allocate additional string
  * @param[in] str String to send
  */
-void AdptSendReply2(string& s)
+void AdptSendReply(string& str)
 {
     if (AdapterConfig::instance()->getBoolProperty(PAR_LINEFEED)) {
-        s += "\r\n";
-        AdptSendString(s);
+        str += "\r\n";
+        AdptSendString(str);
     }
     else {
-        s += "\r";
-        AdptSendString(s);
+        str += "\r";
+        AdptSendString(str);
     }
 }

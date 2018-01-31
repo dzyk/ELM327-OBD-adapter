@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -135,8 +135,8 @@ union IntAggregate
 //
 struct ByteArray {
     const static int ARRAY_SIZE = 7;
-    ByteArray() : length(0) { 
-        memset(data, 0, sizeof(data));
+    ByteArray()  {
+        clear();
     }
     uint32_t asCanId() const {
         if (length == 4) {
@@ -148,6 +148,10 @@ struct ByteArray {
             return val.lvalue;
         }
         return 0;
+    }
+    void clear() {
+    	length = 0;
+    	memset(data, 0, sizeof(data));
     }
     uint8_t data[ARRAY_SIZE];
     uint8_t length;
@@ -193,8 +197,9 @@ private:
 
 
 void AdptSendString(const util::string& str);
+void AdptSendReply(const char* str);
 void AdptSendReply(const util::string& str);
-void AdptSendReply2(util::string& str);
+void AdptSendReply(util::string& str);
 void AdptDispatcherInit();
 void AdptOnCmd(util::string& cmdString);
 void AdptCheckHeartBeat();

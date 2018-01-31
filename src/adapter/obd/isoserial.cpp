@@ -598,7 +598,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numO
         }
 
         msg->toString(str);
-        AdptSendReply2(str); 
+        AdptSendReply(str);
         str.resize(0);
     }
 

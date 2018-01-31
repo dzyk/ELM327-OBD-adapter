@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -10,8 +10,6 @@
 
 #ifdef  __CC_ARM
   #define unique_ptr auto_ptr
-  #define nullptr    NULL
-#elif  __GNUC__ 
 #endif
 
 const int TX_LED_PORT =  0;
