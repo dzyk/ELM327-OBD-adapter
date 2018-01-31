@@ -4,6 +4,10 @@
  * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
  *
  */
+ 
+//
+// Lightweight string class, Version: 3.19
+//
 
 #include <cstring>
 #include <cstdlib>
@@ -12,23 +16,30 @@
 #include <algorithm>
 #include "lstring.h"
 
-
 using namespace std;
 static int32_t mcount;
     
 namespace util {
 
-void string::init(uint32_t size)
+void string::__init(uint32_t size) noexcept
 {
     allocatedLength_ = size > STRING_SIZE ? size : STRING_SIZE;
-    allocatedLength_++;
-    data_ = new char[allocatedLength_]; // Including null terminator
+    data_ = new char[++allocatedLength_]; // Including null terminator
     mcount += allocatedLength_;
+}
+
+void string::__move_assign(string& str) noexcept
+{
+    data_ = str.data_;
+    allocatedLength_ = str.allocatedLength_;
+    length_ = str.length_;
+    str.data_ = nullptr;
+    str.allocatedLength_ = str.length_ = 0;
 }
 
 string::string(uint32_t size)
 {
-    init(size);
+    __init(size);
     data_[0] = 0;
     length_ = 0;
 }
@@ -36,23 +47,28 @@ string::string(uint32_t size)
 string::string(const char* s)
 {
     length_ = strlen(s);
-    init(length_);
+    __init(length_);
     strcpy(data_, s);
 }
 
 string::string(const string& str)
 {
     length_ = str.length_;
-    init(length_);
+    __init(length_);
     strcpy(data_, str.data_);
 }
 
 string::string(uint32_t count, char ch)
 {
     length_ = count;
-    init(length_);
+    __init(length_);
     memset(data_, ch, length_);
     data_[length_] = 0;
+}
+
+string::string(string&& str) noexcept
+{
+    __move_assign(str);
 }
 
 string::~string()
@@ -150,13 +166,13 @@ string& string::operator+=(char ch)
     return *this;
 }
 
-uint32_t string::find(const string& str, uint32_t pos) const
+uint32_t string::find(const string& str, uint32_t pos) const noexcept
 {
     const char* p = strstr(data_ + pos, str.data_);
     return p ? (p - data_) : npos;
 }
 
-uint32_t string::find(char ch, uint32_t pos) const
+uint32_t string::find(char ch, uint32_t pos) const noexcept
 {
     const char* p = strchr(data_ + pos, ch);
     return p ? (p - data_) : npos;
@@ -179,6 +195,13 @@ string& string::operator=(const string& str)
     return *this;
 }
 
+string& string::operator=(string&& str) noexcept
+{
+    delete[] data_;
+    __move_assign(str);
+    return *this;
+}
+
 string& string::operator=(const char* s)
 {
     int len = strlen(s);
@@ -187,7 +210,7 @@ string& string::operator=(const char* s)
     length_ = len;
     return *this;
 }
-void string::clear() 
+void string::clear() noexcept
 {
 	length_ = 0;
 	data_[0] = 0;
