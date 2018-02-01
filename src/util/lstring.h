@@ -6,7 +6,7 @@
  */
 
 //
-// Lightweight string class, Version: 3.19
+// Lightweight string class, Version: 3.20
 //
 
 #ifndef __LSTRING_H__ 
@@ -20,6 +20,29 @@ namespace util {
 
 class string {
 public:
+
+	class iterator {
+	public:
+		iterator(string& str, uint32_t pos) : str_(str), pos_(pos) {}
+		iterator& operator++() { ++pos_; return *this; }
+		bool operator!=(const iterator& rhs) const { return pos_ != rhs.pos_; }
+		char& operator*() { return str_[pos_]; }
+	private:
+		string& str_;
+		uint32_t pos_;
+	};
+
+	class const_iterator {
+	public:
+		const_iterator(const string& str, uint32_t pos) : str_(str), pos_(pos) {}
+		const_iterator& operator++() {	++pos_;	return *this; }
+		bool operator!=(const const_iterator& rhs) const { return pos_ != rhs.pos_;	}
+		char operator*() const { return str_[pos_]; }
+	private:
+		const string& str_;
+		uint32_t pos_;
+	};
+
     const static uint32_t STRING_SIZE = 50;
     const static uint32_t npos = 0xFFFFFFFF;
     string(uint32_t size = STRING_SIZE);
@@ -51,6 +74,10 @@ public:
     string& operator=(string&& str) noexcept;
     string& operator=(const char* s);
     void reserve(uint32_t size);
+    iterator begin() noexcept { return iterator(*this, 0); }
+    iterator end() noexcept { return iterator(*this, length_); }
+    const_iterator begin() const noexcept { return const_iterator(*this, 0); }
+    const_iterator end() const noexcept { return const_iterator(*this, length_); }
 private:
     void __move_assign(string& str) noexcept;
     void __init(uint32_t size) noexcept;
@@ -68,7 +95,8 @@ string operator+(char ch, const string& rhs);
 string operator+(const string& lhs, const char* rhs);
 string operator+(const string& lhs, char ch);
 
-}
+
+} // namespace util
 
 #endif //__LSTRING_H__
 

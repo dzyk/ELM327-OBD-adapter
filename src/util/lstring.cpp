@@ -6,7 +6,7 @@
  */
  
 //
-// Lightweight string class, Version: 3.19
+// Lightweight string class, Version: 3.20
 //
 
 #include <cstring>
