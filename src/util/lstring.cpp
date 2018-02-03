@@ -6,7 +6,7 @@
  */
  
 //
-// Lightweight string class, Version: 3.20
+// Lightweight string class, Version: 3.21
 //
 
 #include <cstring>
@@ -212,13 +212,13 @@ string& string::operator=(const char* s)
 }
 void string::clear() noexcept
 {
-	length_ = 0;
-	data_[0] = 0;
+    length_ = 0;
+    data_[0] = 0;
 }
 
 uint32_t string::copy(char* dest, uint32_t count, uint32_t pos) const
 {
-	memcpy(dest, data_ + pos, count);
+    memcpy(dest, data_ + pos, count);
     return count;
 }
 
