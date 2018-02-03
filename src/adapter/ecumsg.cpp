@@ -11,7 +11,6 @@
 
 using namespace util;
 
-
 class EcumsgISO9141 : public Ecumsg {
     friend class Ecumsg;
 public:
@@ -20,8 +19,7 @@ public:
     virtual void addChecksum();
 private:
     EcumsgISO9141(uint32_t size) : Ecumsg(ISO9141, size) {
-        const uint8_t header[] = { 0x68, 0x6A, 0xF1 };
-        memcpy(header_, header, sizeof(header));
+        __setHeader({ 0x68, 0x6A, 0xF1 });
     }
 };
 
@@ -34,8 +32,7 @@ public:
     virtual uint8_t headerLength() const;
 private:    
     EcumsgISO14230(uint32_t size) : Ecumsg(ISO14230, size) {
-        const uint8_t header[] = { 0xC0, 0x33, 0xF1 };
-        memcpy(header_, header, sizeof(header));
+        __setHeader({ 0xC0, 0x33, 0xF1 });
     }
 };
 
@@ -47,8 +44,7 @@ public:
     virtual void addChecksum();
 private:    
     EcumsgVPW(uint32_t size) : Ecumsg(VPW, size) {
-        const uint8_t header[] = { 0x68, 0x6A, 0xF1 };
-        memcpy(header_, header, sizeof(header));
+        __setHeader({ 0x68, 0x6A, 0xF1 });
     }
 };
 
@@ -60,10 +56,10 @@ public:
     virtual void addChecksum();
 private:
     EcumsgPWM(uint32_t size) : Ecumsg(PWM, size) {
-        const uint8_t header[] = { 0x61, 0x6A, 0xF1 };
-        memcpy(header_, header, sizeof(header));
+        __setHeader({ 0x61, 0x6A, 0xF1 });
     }
 };
+
 /**
  * Factory method for adapter protocol messages
  * @param[in] type Message type
@@ -92,33 +88,9 @@ Ecumsg* Ecumsg::instance(uint8_t type)
         // if header
         const ByteArray* bytes = AdapterConfig::instance()->getBytesProperty(PAR_HEADER_BYTES);
         if (bytes->length)
-            instance->setHeader(bytes->data);
+            instance->__setHeader(bytes->data);
     }
     return instance;
-}
-
-/**
- *  Adds the checksum to ISO 9141/14230 message
- *  @param[in,out] data Data bytes
- *  @param[in,out] length Data length
- */
-static void IsoAddChecksum(uint8_t* data, uint16_t& length)
-{
-    uint8_t sum = 0;
-    for (int i = 0; i < length; i++) {
-        sum += data[i];
-    }
-    data[length++] = sum;
-}
-
-/**
- * Strip the checksum from ISO 9141/1423 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void ISOStripChecksum(uint8_t* data, uint16_t& length)
-{
-    length--;
 }
 
 /**
@@ -161,9 +133,82 @@ void Ecumsg::setData(const uint8_t* data, uint16_t length)
  * Set header bytes
  * @param[in] header The header bytes
  */
-void Ecumsg::setHeader(const uint8_t* header)
+void Ecumsg::__setHeader(std::initializer_list<uint8_t> header)
 {
-    memcpy(header_, header, sizeof(header_)); 
+    memcpy(header_, header.begin(), sizeof(header_));
+}
+
+void Ecumsg::__setHeader(const uint8_t* header)
+{
+    memcpy(header_, header, sizeof(header_));
+}
+
+/**
+ * Adds the header to the message data bytes
+ * @param[in] headerLen Header length
+ */
+void Ecumsg::__addHeader(uint32_t headerLen)
+{
+    // Shift data on headerLen to accommodate the header
+    memmove(&data_[headerLen], data_, length_);
+    memcpy(data_, header_, headerLen);
+    length_ += headerLen;
+}
+
+/**
+ * Remove the header from the message data bytes
+ * @param[in] headerLen Header length
+ */
+void Ecumsg::__removeHeader(uint32_t headerLen)
+{
+    length_ -= headerLen;
+    memmove(data_, &data_[headerLen], length_);
+}
+
+/**
+ *  Adds the checksum to ISO 9141/14230 message
+ */
+void Ecumsg::__isoAddChecksum()
+{
+    uint8_t sum { 0 };
+    for (int i = 0; i < length_; i++) {
+        sum += data_[i];
+    }
+    data_[length_++] = sum;
+}
+
+/*
+ * Add the checksum to J1850 message
+ */
+void Ecumsg::__j1850AddChecksum()
+{
+    const uint8_t* ptr = data_;
+    int len = length_;
+    uint8_t chksum = 0xFF;  // start with all one's
+
+    while (len--) {
+        int i = 8;
+        uint8_t val = *(ptr++);
+        while (i--) {
+            if (((val ^ chksum) & 0x80) != 0) {
+                chksum ^= 0x0E;
+                chksum = (chksum << 1) | 1;
+            }
+            else {
+                chksum = chksum << 1;
+            }
+            val = val << 1;
+        }
+    }
+    data_[length_++] = ~chksum;
+}
+
+/**
+ * Strip the checksum from the message
+ */
+void Ecumsg::__stripChecksum()
+{
+    length_--;
 }
 
 /**
@@ -171,12 +216,8 @@ void Ecumsg::setHeader(const uint8_t* header)
  */
 void EcumsgISO9141::addHeaderAndChecksum()
 {
-    // Shift data on 3 bytes to accommodate the header
-    memmove(&data_[HEADER_SIZE], &data_[0], length_);
-    length_ += HEADER_SIZE;
-    memcpy(&data_[0], header_, HEADER_SIZE);
-    
-    IsoAddChecksum(data_, length_);
+    __addHeader(HEADER_SIZE);
+    __isoAddChecksum();
 }
 
 /**
@@ -184,7 +225,7 @@ void EcumsgISO9141::addHeaderAndChecksum()
  */
 void EcumsgISO9141::addChecksum()
 {
-    IsoAddChecksum(data_, length_);
+    __isoAddChecksum();
 }
 
 /**
@@ -201,9 +242,7 @@ void EcumsgISO14230::addHeaderAndChecksum()
     uint8_t len = length_; // the message length without header
     
     // Shift data on headerSize to accommodate the header
-    memmove(&data_[headerSize], &data_[0], length_);
-    memcpy(data_, header_, headerSize);
-    length_ += headerSize;
+    __addHeader(headerSize);
     
     // Figure out where to store len
     if (byteLenPresent) { // separate byte, the last of the header
@@ -214,7 +253,7 @@ void EcumsgISO14230::addHeaderAndChecksum()
         data_[0] = (data_[0] & 0xC0) | len; 
     }
     
-    IsoAddChecksum(data_, length_);
+    __isoAddChecksum();
 }
 
 /**
@@ -222,7 +261,7 @@ void EcumsgISO14230::addHeaderAndChecksum()
  */
 void EcumsgISO14230::addChecksum()
 {
-    IsoAddChecksum(data_, length_);
+    __isoAddChecksum();
 }
 
 /**
@@ -231,9 +270,8 @@ void EcumsgISO14230::addChecksum()
  */
 bool EcumsgISO9141::stripHeaderAndChecksum()
 {
-    length_ -= HEADER_SIZE;
-    memmove(&data_[0], &data_[HEADER_SIZE], length_);
-    ISOStripChecksum(data_, length_);
+    __removeHeader(HEADER_SIZE);
+    __stripChecksum();
     return true;
 }
 
@@ -253,62 +291,9 @@ uint8_t EcumsgISO14230::headerLength() const
  */
 bool EcumsgISO14230::stripHeaderAndChecksum()
 {
-    uint8_t headerLen = headerLength();
-    
-    length_ -= headerLen;
-    memmove(&data_[0], &data_[headerLen], length_);    
-
-    ISOStripChecksum(data_, length_);
+    __removeHeader(headerLength());
+    __stripChecksum();
     return true;
-}
-
-/**
- * Strip the header from ISO9141/14230 or J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void StripHeader(uint8_t* data, uint16_t& length)
-{
-    length -= Ecumsg::HEADER_SIZE;
-    memmove(&data[0], &data[Ecumsg::HEADER_SIZE], length);
-}
-
-/*
- * Add the checksum to J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void J1850AddChecksum(uint8_t* data, uint16_t& length)
-{
-    const uint8_t* ptr = data;
-    int len = length;
-    uint8_t chksum = 0xFF;  // start with all one's
-    
-    while (len--) {
-        int i = 8;
-        uint8_t val = *(ptr++);
-        while (i--) {
-            if (((val ^ chksum) & 0x80) != 0) {
-                chksum ^= 0x0E;
-                chksum = (chksum << 1) | 1;
-            } 
-            else {
-                chksum = chksum << 1;
-            }
-            val = val << 1;
-        }
-    }
-    data[length++] = ~chksum;
-}
-
-/**
- * Strip the checksum from J1850 message
- * @param[in,out] data Data bytes
- * @param[in,out] length Data length
- */
-static void J1850StripChecksum(uint8_t* data, uint16_t& length)
-{
-    length--;
 }
 
 /**
@@ -316,12 +301,8 @@ static void J1850StripChecksum(uint8_t* data, uint16_t& length)
  */
 void EcumsgVPW::addHeaderAndChecksum()
 {
-    // Shift data on 3 bytes to accommodate the header
-    memmove(&data_[HEADER_SIZE], &data_[0], length_);
-    length_ += HEADER_SIZE;
-    memcpy(&data_[0], header_, HEADER_SIZE);
-    
-    J1850AddChecksum(data_, length_);
+    __addHeader(HEADER_SIZE);
+    __j1850AddChecksum();
 }
 
 /**
@@ -329,7 +310,7 @@ void EcumsgVPW::addHeaderAndChecksum()
  */
 void EcumsgVPW::addChecksum()
 {
-    J1850AddChecksum(data_, length_);
+    __j1850AddChecksum();
 }
 
 /**
@@ -338,8 +319,8 @@ void EcumsgVPW::addChecksum()
  */
 bool EcumsgVPW::stripHeaderAndChecksum()
 {
-    StripHeader(data_, length_);
-    J1850StripChecksum(data_, length_);
+    __removeHeader(HEADER_SIZE);
+    __stripChecksum();
     return true;
 }
 
@@ -348,12 +329,8 @@ bool EcumsgVPW::stripHeaderAndChecksum()
  */
 void EcumsgPWM::addHeaderAndChecksum()
 {
-    // Shift data on 3 bytes to accommodate the header
-    memmove(&data_[HEADER_SIZE], &data_[0], length_);
-    length_ += HEADER_SIZE;
-    memcpy(&data_[0], header_, HEADER_SIZE);
-    
-    J1850AddChecksum(data_, length_);
+    __addHeader(HEADER_SIZE);
+    __j1850AddChecksum();
 }
 
 /**
@@ -361,7 +338,7 @@ void EcumsgPWM::addHeaderAndChecksum()
  */
 void EcumsgPWM::addChecksum()
 {
-    J1850AddChecksum(data_, length_);
+    __j1850AddChecksum();
 }
 
 /**
@@ -370,8 +347,8 @@ void EcumsgPWM::addChecksum()
  */
 bool EcumsgPWM::stripHeaderAndChecksum()
 {
-    StripHeader(data_, length_);
-    J1850StripChecksum(data_, length_);
+    __removeHeader(HEADER_SIZE);
+    __stripChecksum();
     return true;
 }
 
