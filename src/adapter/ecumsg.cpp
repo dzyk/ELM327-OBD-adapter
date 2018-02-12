@@ -19,7 +19,7 @@ public:
     virtual void addChecksum();
 private:
     EcumsgISO9141(uint32_t size) : Ecumsg(ISO9141, size) {
-        __setHeader({ 0x68, 0x6A, 0xF1 });
+        __setHeader(0x68, 0x6A, 0xF1);
     }
 };
 
@@ -32,7 +32,7 @@ public:
     virtual uint8_t headerLength() const;
 private:    
     EcumsgISO14230(uint32_t size) : Ecumsg(ISO14230, size) {
-        __setHeader({ 0xC0, 0x33, 0xF1 });
+        __setHeader(0xC0, 0x33, 0xF1);
     }
 };
 
@@ -44,7 +44,7 @@ public:
     virtual void addChecksum();
 private:    
     EcumsgVPW(uint32_t size) : Ecumsg(VPW, size) {
-        __setHeader({ 0x68, 0x6A, 0xF1 });
+        __setHeader(0x68, 0x6A, 0xF1);
     }
 };
 
@@ -56,7 +56,7 @@ public:
     virtual void addChecksum();
 private:
     EcumsgPWM(uint32_t size) : Ecumsg(PWM, size) {
-        __setHeader({ 0x61, 0x6A, 0xF1 });
+        __setHeader(0x61, 0x6A, 0xF1);
     }
 };
 
@@ -133,14 +133,18 @@ void Ecumsg::setData(const uint8_t* data, uint16_t length)
  * Set header bytes
  * @param[in] header The header bytes
  */
-void Ecumsg::__setHeader(std::initializer_list<uint8_t> header)
+void Ecumsg::__setHeader(uint8_t h1, uint8_t h2, uint8_t h3)
 {
-    memcpy(header_, header.begin(), sizeof(header_));
+    header_[0] = h1;
+    header_[1] = h2;
+    header_[2] = h3;
+    header_[HEADER_SIZE] = 0;
 }
 
 void Ecumsg::__setHeader(const uint8_t* header)
 {
-    memcpy(header_, header, sizeof(header_));
+    memcpy(header_, header, HEADER_SIZE);
+    header_[HEADER_SIZE] = 0;
 }
 
 /**

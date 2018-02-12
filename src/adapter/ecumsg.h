@@ -10,7 +10,6 @@
 
 #include <cstdint>
 #include <lstring.h>
-#include <initializer_list>
 
 using namespace std;
 
@@ -39,7 +38,7 @@ public:
 protected:
     Ecumsg(uint8_t type, uint32_t size);
     void __setHeader(const uint8_t* header);
-    void __setHeader(std::initializer_list<uint8_t> header);
+    void __setHeader(uint8_t h1, uint8_t h2, uint8_t h3);
     void __addHeader(uint32_t headerLen);
     void __removeHeader(uint32_t headerLen);
     void __isoAddChecksum();
@@ -50,7 +49,7 @@ protected:
     uint8_t type_;
     uint16_t length_; // message length
     uint32_t size_;   // number of bytes to store the message
-    uint8_t header_[3];
+    uint8_t header_[HEADER_SIZE + 1];
 };
 
 #endif //__ECUMSG_H__

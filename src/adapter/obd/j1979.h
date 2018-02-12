@@ -12,9 +12,7 @@
 
 using namespace std;
 
-// SAE J1979 timeoutS definition
-
-
+// SAE J1979 timeouts definition
 enum IsoTimeouts {
     W1_MAX_TIMEOUT     =  300,
     W3_TIMEOUT         =  20,
