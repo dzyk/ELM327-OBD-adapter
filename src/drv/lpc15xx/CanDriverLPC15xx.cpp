@@ -11,7 +11,7 @@
 #include <LPC15xx.h>
 #include <romapi_15xx.h>
 #include "CanDriver.h"
-#include "GPIODrv.h"
+#include "GpioDrv.h"
 #include <canmsgbuffer.h>
 #include <led.h>
 

@@ -7,7 +7,7 @@
 
 #include <cstdio>
 #include <adaptertypes.h>
-#include <candriver.h>
+#include <CanDriver.h>
 #include <led.h>
 #include "canhistory.h"
 #include "canmsgbuffer.h"

@@ -9,7 +9,7 @@
 #include <cctype>
 #include <LPC15xx.h>
 #include <Timer.h>
-#include <GPIODrv.h>
+#include <GpioDrv.h>
 #include <CmdUart.h>
 #include <CanDriver.h>
 #include <EcuUart.h>

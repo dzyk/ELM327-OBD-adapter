@@ -10,7 +10,7 @@
 #include <algorithms.h>
 #include <Timer.h>
 #include <CmdUart.h>
-#include <candriver.h>
+#include <CanDriver.h>
 #include <led.h>
 #include "canhistory.h"
 #include "canmsgbuffer.h"

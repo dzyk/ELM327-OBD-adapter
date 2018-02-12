@@ -13,7 +13,7 @@
 #include <algorithms.h>
 #include <CmdUart.h>
 #include <AdcDriver.h>
-#include <TimeoutMgr.h>
+#include <timeoutmgr.h>
 #include <obd/isocan.h>
 
 using namespace util;
