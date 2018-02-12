@@ -9,7 +9,7 @@
 #include <adaptertypes.h>
 #include <algorithms.h>
 #include <Timer.h>
-#include <candriver.h>
+#include <CanDriver.h>
 #include <led.h>
 #include "canhistory.h"
 #include "canmsgbuffer.h"

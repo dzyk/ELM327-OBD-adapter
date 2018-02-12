@@ -7,7 +7,7 @@
 
 #include <cstring>
 #include "UartLPC15xx.h"
-#include "GPIODrv.h"
+#include "GpioDrv.h"
 #include "CmdUart.h"
 
 using namespace std;

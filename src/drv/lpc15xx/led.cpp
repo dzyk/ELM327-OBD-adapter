@@ -6,7 +6,7 @@
  */
 
 #include <Timer.h>
-#include <GPIODrv.h>
+#include <GpioDrv.h>
 #include <adaptertypes.h>
 #include "led.h"
 

@@ -1,5 +1,5 @@
 #include <LPC15xx.h>
-#include "GPIODrv.h"
+#include "GpioDrv.h"
 #include "Timer.h"
 #include "PwmDriver.h"
 
