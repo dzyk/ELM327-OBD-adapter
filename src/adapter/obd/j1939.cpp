@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2017 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -247,7 +247,7 @@ void J1939Adapter::processFrame(const CanMsgBuffer* msg)
  */
 void J1939Adapter::processRtsFrame(const CanMsgBuffer* msg)
 {
-	const int STR_LEN = 4;
+    const int STR_LEN = 4;
     char slen[STR_LEN];
     sprintf(slen, "%.3X", static_cast<unsigned>(mgr_->size()));
     AdptSendReply(slen);
@@ -265,7 +265,7 @@ void J1939Adapter::processDtFrame(const CanMsgBuffer* msg)
         formatReplyWithHeader(msg, str);
     }
     else {
-    	const int STR_LEN = 5;
+        const int STR_LEN = 5;
         char prefix[STR_LEN];
         sprintf(prefix, "%.2X: ", static_cast<unsigned>(msg->data[0]));
         str = prefix;
@@ -348,17 +348,17 @@ void J1939Adapter::monitor(const uint8_t* data, uint32_t len, uint32_t numOfResp
  */
 void J1939Adapter::monitorImpl(uint32_t pgn, uint32_t numOfResp)
 {
-	bool silent = AdapterConfig::instance()->getBoolProperty(PAR_CAN_SILENT_MODE);
-	if (silent) // Set silent mode
-	    driver_->setSilent(true);
+    bool silent = AdapterConfig::instance()->getBoolProperty(PAR_CAN_SILENT_MODE);
+    if (silent) // Set silent mode
+        driver_->setSilent(true);
     
-	setFilterAndMaskForPGN(pgn);
-	CmdUart* uart = CmdUart::instance();
-	uart->monitor(true);
-	uint32_t num = 0;
-	do {
+    setFilterAndMaskForPGN(pgn);
+    CmdUart* uart = CmdUart::instance();
+    uart->monitor(true);
+    uint32_t num = 0;
+    do {
         num += receiveFromEcu();
-	} while(!uart->isMonitorExit() && num < numOfResp);
+    } while(!uart->isMonitorExit() && num < numOfResp);
     
     driver_->clearFilters();
     if (silent) { // Restore if set

@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -486,7 +486,7 @@ void IsoSerialAdapter::sendHeartBeat()
 
     const uint32_t p2Timeout = getP2MaxTimeout();
     uint8_t msgtype = (protocol_ == PROT_ISO14230 || protocol_ == PROT_ISO14230_5BPS)
-    		        ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
+                    ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
     unique_ptr<Ecumsg> msg(Ecumsg::instance(msgtype));
     
     const ByteArray* bytes = config_->getBytesProperty(PAR_WM_HEADER);
@@ -556,7 +556,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numO
     util::string str(TX_BUFFER_LEN);
     
     uint8_t msgtype = (protocol_ == PROT_ISO14230 || protocol_ == PROT_ISO14230_5BPS)
-    		        ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
+                    ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
     unique_ptr<Ecumsg> msg(Ecumsg::instance(msgtype));
     
     msg->setData(data, len);

@@ -1,3 +1,10 @@
+/**
+* See the file LICENSE for redistribution information.
+*
+* Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
+*
+*/
+
 #include <LPC15xx.h>
 #include "GpioDrv.h"
 #include "Timer.h"
@@ -181,7 +188,7 @@ uint32_t PwmDriver::wait4BusChangeVpw()
  */
 bool PwmDriver::wait4Ready(uint32_t timeout1, uint32_t timeout2, Timer* p2timer)
 {
-	bool sts = false;
+    bool sts = false;
 
     // Looking for rising edge or timeout interrupt
     LPC_SCT0->CTRL |= (1 << 2);  // halt it
@@ -193,22 +200,22 @@ bool PwmDriver::wait4Ready(uint32_t timeout1, uint32_t timeout2, Timer* p2timer)
     LPC_SCT0->CTRL &= ~(1 << 2); // unhalt it by clearing bit 2 of the CTRL register
 
     while (!p2timer->isExpired()) {
-    	// Run as long as bus active
-    	if (getBit())
-    		continue;
-    	// Got the passive bus, measuring timeout1
-    	while (getBit() == 0) {
-    		if (LPC_SCT0->COUNT > timeout1)
-    			goto nxt;
-    	}
+        // Run as long as bus active
+        if (getBit())
+            continue;
+        // Got the passive bus, measuring timeout1
+        while (getBit() == 0) {
+            if (LPC_SCT0->COUNT > timeout1)
+                goto nxt;
+        }
     }
     goto done;
 
 nxt:
-	// Just wait for rising edge or timeout2 expired
+    // Just wait for rising edge or timeout2 expired
     while (LPC_SCT0->COUNT <  timeout2) {
-    	if (getBit())
-    		break;
+        if (getBit())
+            break;
     }
     sts = true;
 done:

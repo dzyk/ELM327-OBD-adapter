@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -317,7 +317,7 @@ void OBDProfile::setFilterAndMask()
  */
 void OBDProfile::monitor()
 {
-	adapter_->monitor();
+    adapter_->monitor();
 }
 
 /**
@@ -343,5 +343,5 @@ void OBDProfile::monitor(const util::string& cmdString)
         return;
     }
 
-	adapter_->monitor(data, len, numOfResp);
+    adapter_->monitor(data, len, numOfResp);
 }

@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -69,5 +69,5 @@ void AdptPowerModeConfigure()
 {
     const uint32_t SLEEP = 0;
 
-	LPC_PWRD_API->power_mode_configure(SLEEP, 0x0);
+    LPC_PWRD_API->power_mode_configure(SLEEP, 0x0);
 }

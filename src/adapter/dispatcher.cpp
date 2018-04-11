@@ -346,7 +346,7 @@ static void OnKwDisplay(const string& cmd, int par)
  */
 static void OnJ1939MonitorDM1(const string& cmd, int par)
 {
-	OBDProfile::instance()->monitor();
+    OBDProfile::instance()->monitor();
 }
 
 /**
@@ -356,7 +356,7 @@ static void OnJ1939MonitorDM1(const string& cmd, int par)
  */
 static void OnJ1939MonitorMP(const string& cmd, int par)
 {
-	OBDProfile::instance()->monitor(cmd);
+    OBDProfile::instance()->monitor(cmd);
 }
 
 /**
@@ -763,7 +763,7 @@ void AdptCheckHeartBeat()
  */
 void AdptSendReply(const char* str)
 {
-	string s(strlen(str) + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
+    string s(strlen(str) + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
     s = str;
     AdptSendReply(s);
 }
@@ -774,7 +774,7 @@ void AdptSendReply(const char* str)
  */
 void AdptSendReply(const string& str)
 {
-	string s(str.length() + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
+    string s(str.length() + 2); // avoid unnecessary re-allocation, allocate the exact number of bytes
     s = str;
     AdptSendReply(s); // use the next one
 }

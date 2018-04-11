@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2017 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -56,7 +56,7 @@ void TimeoutManager::p2Timeout(uint32_t val)
     AdptSendReply2(str);
 #endif
 }
-	
+    
 /**
  *  Get P2 timeout
  */
@@ -66,16 +66,16 @@ uint32_t TimeoutManager::p2Timeout() const
         return at0Timeout(); // The very first time
     }
     uint32_t timeout = 0;    
-	switch (mode_) {
-		case AT1:
-		    timeout = at1Timeout();
+    switch (mode_) {
+        case AT1:
+            timeout = at1Timeout();
             break;
-		case AT2:
-		    timeout = at2Timeout();
+        case AT2:
+            timeout = at2Timeout();
             break;
-		case AT0:
-		default:
-			timeout = at0Timeout();
+        case AT0:
+        default:
+            timeout = at0Timeout();
     }
 #ifdef DEBUG_TM_VAL2
     uint8_t data[2];

@@ -1,3 +1,10 @@
+/**
+* See the file LICENSE for redistribution information.
+*
+* Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
+*
+*/
+
 #ifndef __UART_LPC15xx_H__
 #define __UART_LPC15xx_H__
 
@@ -61,42 +68,42 @@ const uint32_t UART_INTEN_RXNOISE    = (0x01 << 15);	// Received noise interrupt
 
 inline void UARTIntEnable(LPC_USART0_Type *pUART, uint32_t intMask)
 {
-	pUART->INTENSET = intMask;
+    pUART->INTENSET = intMask;
 }
 
 inline void UARTIntDisable(LPC_USART0_Type *pUART, uint32_t intMask)
 {
-	pUART->INTENCLR = intMask;
+    pUART->INTENCLR = intMask;
 }
 
 inline uint32_t UARTGetStatus(LPC_USART0_Type *pUART)
 {
-	return pUART->STAT;
+    return pUART->STAT;
 }
 
 inline uint32_t UARTGetIntStatus(LPC_USART0_Type *pUART)
 {
-	return pUART->INTSTAT;
+    return pUART->INTSTAT;
 }
 
 inline uint32_t UARTGetIntsEnabled(LPC_USART0_Type *pUART)
 {
-	return pUART->INTENSET;
+    return pUART->INTENSET;
 }
 
 inline void UARTSendByte(LPC_USART0_Type *pUART, uint8_t data)
 {
-	pUART->TXDATA = (uint32_t) data;
+    pUART->TXDATA = (uint32_t) data;
 }
 
 inline uint8_t UARTReadByte(LPC_USART0_Type *pUART)
 {
-	return pUART->RXDATA & 0xFF;
+    return pUART->RXDATA & 0xFF;
 }
 
 inline void UART_Enable(LPC_USART0_Type *pUART)
 {
-	pUART->CFG |= UART_CFG_ENABLE;
+    pUART->CFG |= UART_CFG_ENABLE;
 }
 
 /**
@@ -105,7 +112,7 @@ inline void UART_Enable(LPC_USART0_Type *pUART)
  */
 inline void UART_Disable(LPC_USART0_Type *pUART)
 {
-	pUART->CFG &= ~UART_CFG_ENABLE;
+    pUART->CFG &= ~UART_CFG_ENABLE;
 }
 
 #endif //__UART_LPC15xx_H__

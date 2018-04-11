@@ -102,7 +102,7 @@ enum AT_Requests {
     // bytes properties
     PAR_CAN_EXT = BYTES_PROPS_START,
     PAR_CAN_FILTER,
-	PAR_CAN_FLOW_CTRL_DAT,
+    PAR_CAN_FLOW_CTRL_DAT,
     PAR_CAN_FLOW_CTRL_HDR,
     PAR_CAN_MASK,
     PAR_CAN_PRIORITY_BITS,
@@ -150,8 +150,8 @@ struct ByteArray {
         return 0;
     }
     void clear() {
-    	length = 0;
-    	memset(data, 0, sizeof(data));
+        length = 0;
+        memset(data, 0, sizeof(data));
     }
     uint8_t data[ARRAY_SIZE];
     uint8_t length;

@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2017 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -25,7 +25,7 @@ J1939ConnectionMgr::J1939ConnectionMgr(J1939Adapter* adapter)
     dst_(0),
     currNum_(0)
 {
-	pgn_[0] = pgn_[1] = pgn_[2] = 0;
+    pgn_[0] = pgn_[1] = pgn_[2] = 0;
 }
 
 /**
@@ -56,7 +56,7 @@ bool J1939ConnectionMgr::rts(const CanMsgBuffer* msg)
 bool J1939ConnectionMgr::data(const CanMsgBuffer* msg)
 {
     if (msg->data[0] != ++currNum_) {
-    	// recovery
+        // recovery
         return false;
     }
     else if (currNum_ == nFrames_) { // the last one, send ack

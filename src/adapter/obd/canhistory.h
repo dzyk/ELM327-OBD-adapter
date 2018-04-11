@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -13,10 +13,10 @@
 using namespace util;
 
 struct MsgEntry {
-	MsgEntry() : id(0), dir(false), ext(false), dlc(0), mid(0)
-	{
-		memset(data, 0, sizeof(data));
-	}
+    MsgEntry() : id(0), dir(false), ext(false), dlc(0), mid(0)
+    {
+        memset(data, 0, sizeof(data));
+    }
     uint32_t id;
     bool dir;
     bool ext;
@@ -29,14 +29,14 @@ struct CanMsgBuffer;
 
 class CanHistory {
 public:
-	CanHistory() : currMsgPos_(0), numOfEntries_(0) {}
-	void dumpCurrentBuffer();
-	void add2Buffer(const CanMsgBuffer* buff, bool dir, uint8_t mid);
+    CanHistory() : currMsgPos_(0), numOfEntries_(0) {}
+    void dumpCurrentBuffer();
+    void add2Buffer(const CanMsgBuffer* buff, bool dir, uint8_t mid);
 private:
-	const static int HISTORY_LEN = 16;
-	int      currMsgPos_;
-	int      numOfEntries_;
-	MsgEntry msglog_[HISTORY_LEN];
+    const static int HISTORY_LEN = 16;
+    int      currMsgPos_;
+    int      numOfEntries_;
+    MsgEntry msglog_[HISTORY_LEN];
 };
 
 

@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -223,8 +223,8 @@ int PwmAdapter::onConnectEcu(bool sendReply)
     open();
 
     if (OBDProfile::instance()->getProtocol() == PROT_J1850_VPW) {
-    	connected_ = true;
-    	return PROT_J1850_PWM;
+        connected_ = true;
+        return PROT_J1850_PWM;
     }
 
     int reply = requestImpl(testSeq, sizeof(testSeq), 0xFFFFFFfF, sendReply);
