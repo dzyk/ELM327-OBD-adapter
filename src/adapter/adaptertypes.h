@@ -5,7 +5,7 @@
  *
  */
 
-#ifndef __ADAPTER_TYPES_H__ 
+#ifndef __ADAPTER_TYPES_H__
 #define __ADAPTER_TYPES_H__
 
 #include <cstdint>
@@ -16,14 +16,21 @@
 using namespace std;
 
 // Config settings
-const int KWP_HDR_LEN      = 5; // 4 header + 1 chksum
-const int OBD_IN_MSG_DLEN  = 8;
-const int OBD_OUT_MSG_DLEN = 255;                            // Binary len
-const int OBD_OUT_MSG_LEN  = OBD_OUT_MSG_DLEN + KWP_HDR_LEN; // Binary buffer size
-const int TX_BUFFER_LEN    = OBD_OUT_MSG_LEN * 3;            // Char buffer size
 
-const int OBD_IN_MSG_LEN   = OBD_IN_MSG_DLEN + KWP_HDR_LEN;
-const int RX_BUFFER_LEN    = OBD_IN_MSG_LEN * 3; 
+// OBD part
+const int KWP_EXTRA_LEN    = 5; // 4 header + 1 chksum
+const int OBD_IN_MSG_DLEN  = 8;
+const int OBD_OUT_MSG_DLEN = 255;
+const int OBD_OUT_MSG_LEN  = OBD_OUT_MSG_DLEN + KWP_EXTRA_LEN;
+
+// J1850 part
+const int J1850_IN_MSG_DLEN = 2080;
+const int J1850_EXTRA_LEN   = 4; // 3 header + 1 chksum
+
+const int TX_BUFFER_LEN  = 64;
+const int OBD_IN_MSG_LEN = OBD_IN_MSG_DLEN + KWP_EXTRA_LEN;
+const int RX_BUFFER_LEN  = J1850_IN_MSG_DLEN;
+const int RX_RESERVED    = J1850_EXTRA_LEN;
 
 //
 // Command dispatch values
@@ -97,6 +104,7 @@ enum AT_Requests {
     PAR_SET_BRD,
     PAR_TIMEOUT,
     PAR_TRY_BRD,
+    PAR_VPW_SPEED,
     PAR_WAKEUP_VAL,
     INT_PROPS_END,
     // bytes properties
@@ -118,15 +126,15 @@ enum AT_Requests {
 //
 union IntAggregate
 {
-    uint32_t lvalue;  
-    uint8_t  bvalue[4];  
+    uint32_t lvalue;
+    uint8_t  bvalue[4];
     IntAggregate() { lvalue = 0; }
     IntAggregate(uint32_t val) { lvalue = val; }
     IntAggregate(uint8_t b0, uint8_t b1, uint8_t b2 = 0, uint8_t b3 = 0) {
-        bvalue[0] = b0; 
-        bvalue[1] = b1; 
-        bvalue[2] = b2; 
-        bvalue[3] = b3; 
+        bvalue[0] = b0;
+        bvalue[1] = b1;
+        bvalue[2] = b2;
+        bvalue[3] = b3;
     }
 };
 
@@ -180,7 +188,7 @@ private:
 };
 
 //
-// Helper class for insering spaces, depends on ATS0/ATS1
+// Helper class for inserting spaces, depends on ATS0/ATS1
 //
 class Spacer {
 public:
@@ -195,13 +203,13 @@ private:
     bool spaces_;
 };
 
-
+class DataCollector;
 void AdptSendString(const util::string& str);
 void AdptSendReply(const char* str);
 void AdptSendReply(const util::string& str);
 void AdptSendReply(util::string& str);
 void AdptDispatcherInit();
-void AdptOnCmd(util::string& cmdString);
+void AdptOnCmd(const DataCollector* collector);
 void AdptCheckHeartBeat();
 void AdptReadSerialNum();
 void AdptPowerModeConfigure();

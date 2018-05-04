@@ -1,12 +1,12 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
  
 //
-// Lightweight string class, Version: 3.21
+// Lightweight string class, Version: 3.22
 //
 
 #include <cstring>
@@ -189,16 +189,22 @@ string string::substr(uint32_t pos, uint32_t count) const
 
 string& string::operator=(const string& str)
 {
-    reserve(str.length_ + 1);
-    memcpy(data_, str.data_, str.length_ + 1); // including null terminator
-    length_ = str.length_;
+    // Self assignment check
+    if (this != &str) {
+        reserve(str.length_ + 1);
+        memcpy(data_, str.data_, str.length_ + 1); // including null terminator
+        length_ = str.length_;
+    }
     return *this;
 }
 
 string& string::operator=(string&& str) noexcept
 {
-    delete[] data_;
-    __move_assign(str);
+    // Self assignment check
+    if (this != &str) {
+        delete[] data_;
+        __move_assign(str);
+    }
     return *this;
 }
 

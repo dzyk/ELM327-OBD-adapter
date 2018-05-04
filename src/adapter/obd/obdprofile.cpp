@@ -7,6 +7,7 @@
 
 #include <algorithms.h>
 #include "obdprofile.h"
+#include "datacollector.h"
 
 using namespace util;
 
@@ -120,12 +121,12 @@ int OBDProfile::setProtocol(int num, bool refreshConnection)
 
 /**
  * The entry for ECU send/receive function
- * @param[in] cmdString The command
+ * @param[in] collector The command
  * @return The status code
  */
-void OBDProfile::onRequest(const string& cmdString)
+void OBDProfile::onRequest(const DataCollector* collector)
 {
-    int result = onRequestImpl(cmdString);
+    int result = onRequestImpl(collector);
     switch(result) {
         case REPLY_CMD_WRONG:
             AdptSendReply(ErrMessage);
@@ -165,12 +166,12 @@ void OBDProfile::onRequest(const string& cmdString)
 /**
  * The number of frames parameter parser
  * @param[in] cmdString The command
- * @param[in] cmdString The command length
+ * @param[in] len The command length
  * @return The number of responces to wait for
  */
 static uint32_t numOfFrames(const string& str, uint32_t len)
 {
-    const uint32_t NumOfResp = 0xFFFFFFFF;;
+    const uint32_t NumOfResp = 0xFFFFFFFF;
     
     if ((len % 2) == 0) {
         return NumOfResp;
@@ -186,34 +187,25 @@ static uint32_t numOfFrames(const string& str, uint32_t len)
  * @param[in] cmdString The command
  * @return The status code
  */
-int OBDProfile::onRequestImpl(const string& cmdString)
+int OBDProfile::onRequestImpl(const DataCollector* collector)
 {
     const char* OBD_TEST_SEQ = "0100";
-    uint8_t data[OBD_IN_MSG_LEN];
-
-    // Buffer overrun check,
-    // should be less then (11 * 2) => 22 characters
-    uint32_t cmdLen = cmdString.length();
-    if (cmdLen > (sizeof(data) * 2)) {
-        return REPLY_CMD_WRONG;
-    }
     
-    uint32_t numOfResp = numOfFrames(cmdString, cmdLen);
-    int len = to_bytes(cmdString, data);
+    uint32_t numOfResp = collector->getNumOfResponses();
 
     // Valid request length?
-    if (!sendLengthCheck(data, len)) {
+    if (!sendLengthCheck(collector->getLength())) {
         return REPLY_DATA_ERROR;
     }
 
     // The regular flow stops here
     if (adapter_->isConnected()) {
-        return adapter_->onRequest(data, len, numOfResp);
+        return adapter_->onRequest(collector->getData(), collector->getLength(), numOfResp);
     } 
 
     // The convoluted logic
     //
-    bool sendReply = (cmdString == OBD_TEST_SEQ) && 
+    bool sendReply = (collector->getString() == OBD_TEST_SEQ) &&
         (OBDProfile::instance()->getProtocol() == PROT_AUTO);
     
     int protocol = 0;
@@ -238,7 +230,7 @@ int OBDProfile::onRequestImpl(const string& cmdString)
     if (protocol) {
         setProtocol(protocol, false);
         if (!sendReply || (protocol >= PROT_ISO9141 && protocol <= PROT_ISO14230)) {
-            sts = adapter_->onRequest(data, len, numOfResp);
+            sts = adapter_->onRequest(collector->getData(), collector->getLength(), numOfResp);
         }
         else {
             sts = REPLY_NONE; //the command sent already as part of autoconnect
@@ -253,13 +245,16 @@ int OBDProfile::onRequestImpl(const string& cmdString)
  * @param[in] len The request length
  * @return true if set, false otherwise
  */
-bool OBDProfile::sendLengthCheck(const uint8_t* msg, int len)
+bool OBDProfile::sendLengthCheck(int len)
 {
     int maxLen = OBD_IN_MSG_DLEN;
     
     // For KWP use maxlen=8
     if (adapter_ ==  ProtocolAdapter::getAdapter(ADPTR_ISO)) {
         maxLen++;
+    }
+    else if (adapter_ ==  ProtocolAdapter::getAdapter(ADPTR_VPW)) {
+        maxLen = J1850_IN_MSG_DLEN; // For VPW use max length
     }
 
     if ((len == 0) ||len > maxLen) {
@@ -324,7 +319,7 @@ void OBDProfile::monitor()
  * Pass to J1939 layer for ATMP monitoring
  * @param[in] cmdString The command
  */
-void OBDProfile::monitor(const util::string& cmdString)
+void OBDProfile::monitor(const string& cmdString)
 {
     const int ATMP_LEN = 6;
     uint8_t data[ATMP_LEN];
@@ -339,7 +334,7 @@ void OBDProfile::monitor(const util::string& cmdString)
     int len = to_bytes(cmdString, data);
 
     // Valid request length?
-    if (!sendLengthCheck(data, len)) {
+    if (!sendLengthCheck(len)) {
         return;
     }
 

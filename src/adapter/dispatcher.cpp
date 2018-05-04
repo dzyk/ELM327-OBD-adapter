@@ -7,7 +7,8 @@
 
 #include <climits>
 #include <cstdio>
-#include <adaptertypes.h>
+#include "adaptertypes.h"
+#include "datacollector.h"
 #include <obd/j1979.h>
 #include "obd/obdprofile.h"
 #include <algorithms.h>
@@ -19,11 +20,10 @@
 using namespace util;
 
 //
-// Reply string constants
-//
+// Reply string constants//
 static const char ErrMessage[] { "?" };
 static const char OkMessage [] { "OK" };
-static const char Version   [] { "1.15" };
+static const char Version   [] { "1.17" };
 static const char Interface [] { "ELM327 v2.1" };
 static const char Copyright [] { "Copyright (c) 2009-2018 ObdDiag.Net" };
 static const char Copyright2[] { "This is free software; see the source for copying conditions. There is NO" };
@@ -487,6 +487,29 @@ static void OnCanSetTimeoutMult(const string& cmd, int par)
 }
 
 /**
+ * Set VPW physical layer speed, either 10.4 or 41.6 Kbps
+ * @param[in] cmd Command line
+ * @param[in] par The number in dispatch table
+ */
+static void OnSetVPWSpeed(const string& cmd, int par)
+{
+    uint32_t speed = 0;
+    if (cmd == "1") {
+        speed = 1;
+    }
+    else if(cmd == "4") {
+        speed = 4;
+    }
+    else { // reject everything else
+        AdptSendReply(ErrMessage);
+        return;
+    }
+    
+    AdapterConfig::instance()->setIntProperty(PAR_VPW_SPEED, speed);
+    AdptSendReply(OkMessage);
+}
+
+/**
  * Set adapter default parameters
  */
 static void SetDefault()
@@ -510,6 +533,7 @@ static void SetDefault()
     config->setIntProperty(PAR_WAKEUP_VAL, (DEFAULT_WAKEUP_TIME / 20));
     config->setIntProperty(PAR_CAN_TSTR_ADDRESS, TESTER_ADDRESS);
     config->setIntProperty(PAR_CAN_TSTR_ADDRESS, 0xF1);
+    config->setIntProperty(PAR_VPW_SPEED, 1);
 }
 
 /**
@@ -640,6 +664,7 @@ static const DispatchType dispatchTbl[] = {
     { "TP",     PAR_TRY_PROTOCOL,      2,  2, OnSetProtocol          },
     { "V0",     PAR_CAN_VAIDATE_DLC,   0,  0, OnSetValueFalse        },
     { "V1",     PAR_CAN_VAIDATE_DLC,   0,  0, OnSetValueTrue         },
+    { "VPW",    PAR_VPW_SPEED,         1,  1, OnSetVPWSpeed          },
     { "WM",     PAR_WM_HEADER,         2, 12, OnSetBytes             },
     { "WS",     PAR_WARMSTART,         0,  0, OnReset                },
     { "Z",      PAR_RESET_CPU,         0,  0, OnReset                }
@@ -704,36 +729,36 @@ static bool ParseGenericATCmd(const string& cmdString)
 
 /**
  * Get the new command, do the processing. The "entry point" is here!
- * @param[in] cmdString The user command
+ * @param[in] collector The user command
  */
-void AdptOnCmd(string& cmdString)
+void AdptOnCmd(const DataCollector* collector)
 {
-    static string PreviousCmd(RX_BUFFER_LEN);
+    static DataCollector previousCmd(OBD_IN_MSG_DLEN);
     bool succeeded = false;
     
-    // Compress and convert to uppercase 
-    to_upper(cmdString);
-    remove_space(cmdString);
-
+    const DataCollector* activeCollector = collector;
+    
     // Repeat the previous ?
-    if (cmdString.empty()) {
-        cmdString = PreviousCmd;
+    if (collector->getString().empty()) {
+        activeCollector = &previousCmd;
+    }
+    else if(!collector->isHugeBuffer()) { // do not provide this functionality
+        previousCmd = *collector;         // for huge buffers
+    }
+
+    if (activeCollector->isData()) { // Should be only digits
+        OBDProfile::instance()->onRequest(activeCollector);
+        succeeded = true;
     }
     else {
-        PreviousCmd = cmdString;
-    }
+        const string& cmdString = activeCollector->getString();
+        string key = cmdString.substr(0,2);
 
-    // Do we have AT sequence here?
-    if (cmdString.substr(0,2) != "AT") { // Not AT sequence
-        if (is_xdigits(cmdString)) {     // Should be only digits
-            OBDProfile::instance()->onRequest(cmdString);
-            succeeded = true;
+        if (key == "AT") { // AT sequence
+            succeeded = ParseGenericATCmd(cmdString); // String cmd->numeric
         }
     }
-    else { // AT sequence
-        succeeded = ParseGenericATCmd(cmdString); // String cmd->numeric
-    }
-    
+
     if (!succeeded) {
         AdptSendReply(ErrMessage);
     }

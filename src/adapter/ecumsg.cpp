@@ -5,8 +5,8 @@
  *
  */
 
-#include <adaptertypes.h>
 #include <algorithms.h>
+#include "adaptertypes.h"
 #include "ecumsg.h"
 
 using namespace util;
@@ -18,7 +18,7 @@ public:
     virtual bool stripHeaderAndChecksum();
     virtual void addChecksum();
 private:
-    EcumsgISO9141(uint32_t size) : Ecumsg(ISO9141, size) {
+    EcumsgISO9141() : Ecumsg(ISO9141) {
         __setHeader(0x68, 0x6A, 0xF1);
     }
 };
@@ -31,7 +31,7 @@ public:
     virtual void addChecksum();
     virtual uint8_t headerLength() const;
 private:    
-    EcumsgISO14230(uint32_t size) : Ecumsg(ISO14230, size) {
+    EcumsgISO14230() : Ecumsg(ISO14230) {
         __setHeader(0xC0, 0x33, 0xF1);
     }
 };
@@ -43,7 +43,7 @@ public:
     virtual bool stripHeaderAndChecksum();
     virtual void addChecksum();
 private:    
-    EcumsgVPW(uint32_t size) : Ecumsg(VPW, size) {
+    EcumsgVPW() : Ecumsg(VPW) {
         __setHeader(0x68, 0x6A, 0xF1);
     }
 };
@@ -55,7 +55,7 @@ public:
     virtual bool stripHeaderAndChecksum();
     virtual void addChecksum();
 private:
-    EcumsgPWM(uint32_t size) : Ecumsg(PWM, size) {
+    EcumsgPWM() : Ecumsg(PWM) {
         __setHeader(0x61, 0x6A, 0xF1);
     }
 };
@@ -67,20 +67,19 @@ private:
  */
 Ecumsg* Ecumsg::instance(uint8_t type)
 {
-    const uint32_t size = 255 + 10; // Max for ISO9141/KWP
     Ecumsg* instance = nullptr;
     switch(type) {
         case ISO9141:
-            instance = new EcumsgISO9141(size);
+            instance = new EcumsgISO9141();
             break;
         case ISO14230:
-            instance = new EcumsgISO14230(size);
+            instance = new EcumsgISO14230();
             break;
         case VPW:
-            instance = new EcumsgVPW(size);
+            instance = new EcumsgVPW();
             break;
         case PWM:
-            instance = new EcumsgPWM(size);
+            instance = new EcumsgPWM();
             break;
     }
     
@@ -96,9 +95,8 @@ Ecumsg* Ecumsg::instance(uint8_t type)
 /**
  * Construct Ecumsg object
  */
-Ecumsg::Ecumsg(uint8_t type, uint32_t size) : type_(type), length_(0), size_(size)
+Ecumsg::Ecumsg(uint8_t type) : data_(nullptr), type_(type), length_(0)
 {
-    data_ = new uint8_t[size];
 }
 
 /**
@@ -106,16 +104,30 @@ Ecumsg::Ecumsg(uint8_t type, uint32_t size) : type_(type), length_(0), size_(siz
  */
 Ecumsg::~Ecumsg()
 {
-    delete[] data_;
 }
 
 /**
  * Get the string representation of message bytes
  * @param[out] str The output string
  */
-void Ecumsg::toString(string& str) const
+void Ecumsg::sendReply() const
 {
-    to_ascii(data_, length_, str);
+    const uint32_t OutLen = TX_BUFFER_LEN;
+    static string str(OutLen * 3);
+    uint32_t msgLen = length_;
+    Spacer spacer(str);
+    
+    for (int n = 0; msgLen > 0; n += OutLen) {
+        uint32_t len = min(msgLen, OutLen);
+        to_ascii(&data_[n], len, str);
+        msgLen -= len;
+        if (msgLen > 0) {
+            spacer.space();
+        }
+        AdptSendString(str);
+        str.resize(0);
+    }
+    AdptSendReply(""); // line terminator
 }
 
 /**
@@ -126,7 +138,7 @@ void Ecumsg::toString(string& str) const
 void Ecumsg::setData(const uint8_t* data, uint16_t length)
 {
     length_ = length;
-    memcpy(data_, data, length);
+    data_ = const_cast<uint8_t*>(data);
 }
 
 /**

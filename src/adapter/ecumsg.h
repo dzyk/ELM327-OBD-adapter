@@ -34,9 +34,9 @@ public:
     virtual uint8_t headerLength() const { return HEADER_SIZE; }
     Ecumsg& operator+=(uint8_t byte) { data_[length_++] = byte; return *this; }
     void setData(const uint8_t* data, uint16_t length);
-    void toString(util::string& str) const;
+    void sendReply() const;
 protected:
-    Ecumsg(uint8_t type, uint32_t size);
+    Ecumsg(uint8_t type);
     void __setHeader(const uint8_t* header);
     void __setHeader(uint8_t h1, uint8_t h2, uint8_t h3);
     void __addHeader(uint32_t headerLen);
@@ -48,7 +48,6 @@ protected:
     uint8_t* data_;
     uint8_t type_;
     uint16_t length_; // message length
-    uint32_t size_;   // number of bytes to store the message
     uint8_t header_[HEADER_SIZE + 1];
 };
 

@@ -248,7 +248,6 @@ int PwmAdapter::requestImpl(const uint8_t* data, uint32_t len, uint32_t numOfRes
 {
     int p2Timeout = getP2MaxTimeout();
     bool gotReply = false;
-    util::string str;
     
     unique_ptr<Ecumsg> msg(Ecumsg::instance(Ecumsg::PWM));
     
@@ -279,7 +278,7 @@ int PwmAdapter::requestImpl(const uint8_t* data, uint32_t len, uint32_t numOfRes
         if (sts == 0) {  // Timeout
             break;
         }        
-        if (msg->length() < OBD2_BYTES_MIN || msg->length() > OBD2_BYTES_MAX) {
+        if (msg->length() < OBD2_BYTES_MIN || msg->length() > J1850_BYTES_MAX) {
             continue;
         }
         if (msg->data()[1] != expct2ndByte) { // Ignore all replies but expected
@@ -303,10 +302,8 @@ int PwmAdapter::requestImpl(const uint8_t* data, uint32_t len, uint32_t numOfRes
         }
 
         if (sendReply && msg->length() > 0) {
-            msg->toString(str);
-            AdptSendReply(str);
+            msg->sendReply();
         }
-        str.resize(0);
         gotReply = true;
     } while(!timer_->isExpired() && (num < numOfResp));
         

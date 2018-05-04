@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -9,6 +9,8 @@
 #define __OBD_PROFILE_H__
 
 #include "padapter.h"
+
+class DataCollector;
 
 class OBDProfile {
 private:
@@ -22,7 +24,7 @@ public:
     void sendHeartBeat();
     void dumpBuffer();
     void closeProtocol();
-    void onRequest(const util::string& cmdString);
+    void onRequest(const DataCollector* collector);
     int getProtocol() const;
     void wiringCheck();
     int kwDisplay();
@@ -30,8 +32,8 @@ public:
     void monitor();
     void monitor(const util::string& cmdString);
 private:
-    bool sendLengthCheck(const uint8_t* msg, int len);
-    int onRequestImpl(const util::string& cmdString);
+    bool sendLengthCheck(int len);
+    int onRequestImpl(const DataCollector* collector);
     ProtocolAdapter* adapter_;
 };
 

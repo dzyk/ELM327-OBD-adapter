@@ -553,7 +553,6 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numO
     bool reply = false;
     int p2Timeout = getP2MaxTimeout();
     const int maxLen = get2MaxLen();
-    util::string str(TX_BUFFER_LEN);
     
     uint8_t msgtype = (protocol_ == PROT_ISO14230 || protocol_ == PROT_ISO14230_5BPS)
                     ? Ecumsg::ISO14230 : Ecumsg::ISO9141;
@@ -597,9 +596,7 @@ int IsoSerialAdapter::onRequest(const uint8_t* data, uint32_t len, uint32_t numO
             }
         }
 
-        msg->toString(str);
-        AdptSendReply(str);
-        str.resize(0);
+        msg->sendReply();
     }
 
     setKeepAlive();

@@ -5,10 +5,9 @@
  *
  */
 
-#include <adaptertypes.h>
 #include <algorithms.h>
+#include "adaptertypes.h"
 #include "timeoutmgr.h"
-//#include <lstring.h>
 
 const uint32_t AT1_VALUE  = 30;
 const uint32_t AT2_VALUE  = 10;

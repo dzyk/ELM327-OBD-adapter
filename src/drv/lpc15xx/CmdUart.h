@@ -34,7 +34,7 @@ private:
     void txIrqHandler();
     void rxIrqHandler();
 
-    char txData_[TX_BUFFER_LEN];
+    char txData_[TX_BUFFER_LEN * 3];
     util::string    rdData_;
     uint16_t        txLen_;
     uint16_t        txPos_;
