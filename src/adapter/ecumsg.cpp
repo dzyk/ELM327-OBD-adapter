@@ -11,6 +11,8 @@
 
 using namespace util;
 
+const uint8_t* Ecumsg::refData_;
+
 class EcumsgISO9141 : public Ecumsg {
     friend class Ecumsg;
 public:
@@ -97,6 +99,7 @@ Ecumsg* Ecumsg::instance(uint8_t type)
  */
 Ecumsg::Ecumsg(uint8_t type) : data_(nullptr), type_(type), length_(0)
 {
+    data_ = localData_; // use "localData_" as "data_" until we change it
 }
 
 /**
@@ -131,14 +134,20 @@ void Ecumsg::sendReply() const
 }
 
 /**
- * Set the message data bytes
+ * Set the message data bytes, use external buffer to store
  * @param[in] data Data bytes
  * @param[in] length Data length
  */
-void Ecumsg::setData(const uint8_t* data, uint16_t length)
+void Ecumsg::setData(const uint8_t* data, uint32_t length)
 {
     length_ = length;
-    data_ = const_cast<uint8_t*>(data);
+    if (data != refData_) { // use internal buffer
+        memcpy(localData_, data, util::min(length, sizeof(localData_)));
+        data_ = localData_;
+    }
+    else { // use extrernal buffer
+        data_ = const_cast<uint8_t*>(data);
+    }
 }
 
 /**
@@ -367,4 +376,3 @@ bool EcumsgPWM::stripHeaderAndChecksum()
     __stripChecksum();
     return true;
 }
-

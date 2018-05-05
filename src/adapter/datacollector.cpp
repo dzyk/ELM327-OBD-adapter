@@ -34,7 +34,7 @@ DataCollector& DataCollector::operator=(const DataCollector& collector)
     // Self assignment check
     if (this != &collector) {
         str_ = collector.str_;
-        length_ = min(collector.length_, limit_);
+        length_ = util::min(collector.length_, limit_);
         previous_ = collector.previous_;
         binary_ = collector.binary_;
         memcpy(data_, collector.data_, length_);

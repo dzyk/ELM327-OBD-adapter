@@ -19,6 +19,7 @@
 #include "adaptertypes.h"
 #include "datacollector.h"
 
+
 using namespace std;
 using namespace util;
 
@@ -95,6 +96,8 @@ void AdptSendString(const util::string& str)
 static void AdapterRun() 
 {
     collector = new DataCollector(RX_BUFFER_LEN, RX_RESERVED);
+    Ecumsg::setReferenceData(collector->getData());
+    
     glblUart = CmdUart::instance();
     glblUart->init(UART_SPEED);
     glblUart->handler(UserUartRcvHandler);

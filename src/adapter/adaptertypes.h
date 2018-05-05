@@ -21,6 +21,7 @@ using namespace std;
 const int KWP_EXTRA_LEN    = 5; // 4 header + 1 chksum
 const int OBD_IN_MSG_DLEN  = 8;
 const int OBD_OUT_MSG_DLEN = 255;
+const int OBD_IN_MSG_LEN   = OBD_IN_MSG_DLEN + KWP_EXTRA_LEN;
 const int OBD_OUT_MSG_LEN  = OBD_OUT_MSG_DLEN + KWP_EXTRA_LEN;
 
 // J1850 part
@@ -28,7 +29,6 @@ const int J1850_IN_MSG_DLEN = 2080;
 const int J1850_EXTRA_LEN   = 4; // 3 header + 1 chksum
 
 const int TX_BUFFER_LEN  = 64;
-const int OBD_IN_MSG_LEN = OBD_IN_MSG_DLEN + KWP_EXTRA_LEN;
 const int RX_BUFFER_LEN  = J1850_IN_MSG_DLEN;
 const int RX_RESERVED    = J1850_EXTRA_LEN;
 
