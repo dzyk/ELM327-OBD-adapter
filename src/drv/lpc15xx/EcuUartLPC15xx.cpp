@@ -20,8 +20,7 @@ const uint32_t PinAssign = ((RxPin << 16) + (RxPort * 32)) | ((TxPin << 8)  + (T
 
 
 //#define INVERT_OUTPUT // Invert output for simple transistor-based K-line driver
-#define OPEN_DRAIN      // Define open-drain for most of the board, 
-                        // comment it out for simple transistor-based K-line driver
+//#define OPEN_DRAIN    // We might have it for Dev board to be totally input level compiant.
 
 /**
  * EcuUart singleton
