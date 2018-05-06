@@ -142,7 +142,7 @@ void Ecumsg::setData(const uint8_t* data, uint32_t length)
 {
     length_ = length;
     if (data != refData_) { // use internal buffer
-        memcpy(localData_, data, util::min(length, sizeof(localData_)));
+        memcpy(localData_, data, min(length, static_cast<uint32_t>(sizeof(localData_))));
         data_ = localData_;
     }
     else { // use extrernal buffer
