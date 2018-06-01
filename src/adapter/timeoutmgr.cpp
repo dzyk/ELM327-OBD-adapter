@@ -8,6 +8,7 @@
 #include <algorithms.h>
 #include "adaptertypes.h"
 #include "timeoutmgr.h"
+#include "obd/obdprofile.h"
 
 const uint32_t AT1_VALUE  = 30;
 const uint32_t AT2_VALUE  = 10;
@@ -86,14 +87,14 @@ uint32_t TimeoutManager::p2Timeout() const
     return timeout;
 }
 
+
 /**
  *  Get the timeout for AT0 mode
  */
 uint32_t TimeoutManager::at0Timeout() const
 {
     uint32_t p2Timeout = AdapterConfig::instance()->getIntProperty(PAR_TIMEOUT); 
-    bool timeoutMult = AdapterConfig::instance()->getBoolProperty(PAR_CAN_TIMEOUT_MULT);
-    uint32_t timeoutMultVal = timeoutMult ? 5 : 1;
+    uint32_t timeoutMultVal = multiplier() ? 5 : 1;
     return p2Timeout ? (p2Timeout * 4 * timeoutMultVal) : DEFAULT_TIMEOUT; 
 }
 
@@ -111,4 +112,20 @@ uint32_t TimeoutManager::at1Timeout() const
 uint32_t TimeoutManager::at2Timeout() const
 {
     return timeout_ + AT2_VALUE;
+}
+
+/**
+ *  Get the timeout multiplier for CAN/J1939
+ */
+bool TimeoutManager::multiplier() const
+{
+    switch (OBDProfile::instance()->getProtocol()) {
+        case PROT_ISO15765_1150:
+        case PROT_ISO15765_2950:
+        case PROT_ISO15765_1125:
+        case PROT_ISO15765_2925:
+        case PROT_ISO15765_USR_B:
+            return AdapterConfig::instance()->getBoolProperty(PAR_CAN_TIMEOUT_MLT);
+    }
+    return false;
 }

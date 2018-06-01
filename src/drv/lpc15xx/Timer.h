@@ -1,7 +1,7 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
@@ -9,25 +9,22 @@
 #define __TIMER_H__
 
 #include <cstdint>
+#include <LPC15xx.h>
 
 using namespace std;
 
-
-struct LPC_MRT_CH_T;
 class Timer {
 public:
     const static int TIMER0 = 0;
     const static int TIMER1 = 1;
-    const static int TIMER2 = 2;
     static Timer* instance(int timerNum);
     void start(uint32_t interval);
     bool isExpired() const;
     uint32_t value() const;
 protected:
     Timer(int timerNum);
-    LPC_MRT_CH_T* timer_;
+    LPC_SCT2_Type* sct_;
 };
-
 
 class LongTimer {
 public:

@@ -1,50 +1,50 @@
 /**
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009-2016 ObdDiag.Net. All rights reserved.
+ * Copyright (c) 2009-2018 ObdDiag.Net. All rights reserved.
  *
  */
 
-#include <LPC15xx.h>
 #include "Timer.h"
 
 const uint32_t tickDiv = (SystemCoreClock / 1000);
 
-struct LPC_MRT_CH_T {
-    __IO uint32_t INTVAL; // Timer interval register
-    __O  uint32_t TIMER;  // Timer register
-    __IO uint32_t CTRL;   // Timer control register
-    __IO uint32_t STAT;   // Timer status register
-};
-
 /**
  * Construct the Timer object
- * @param[in] timerNum Logical timer number (0..2)
+ * @param[in] timerNum Logical timer number (0..1)
  */
 Timer::Timer(int timerNum)
 {
-    timer_ = reinterpret_cast<LPC_MRT_CH_T*>(LPC_MRT_BASE) + timerNum;
-    timer_->CTRL = 0x02; // one-shot mode
+    sct_ = (timerNum == 0) ? LPC_SCT2 : LPC_SCT3;
+    sct_->CONFIG = (1 << 0) | (1 << 17); // unified 32-bit timer, auto limit
+    sct_->EV0_STATE = 0xFFFFFFFF;        // event 0 happens in all states
+    sct_->EV0_CTRL = (1 << 12);          // match 0 condition only
 }
 
 /**
- * Start/restart the timer, interval <= 349 ms
+ * Start/restart the timer
  * @param[in] interval Timer interval in milliseconds
  */
 void Timer::start(uint32_t interval) 
 {
     uint32_t val = tickDiv * interval;
-    timer_->STAT |= 0x01; // Clear interrupt flag
-    timer_->INTVAL = val | 0x80000000;
+    
+    // We have to stop it as it might be running & clear the counter
+    sct_->CTRL |= (1 << 2);  // halt SCTn
+    sct_->EVFLAG |= 0x01;    // clear event 0
+    sct_->COUNT = 0;
+    
+    sct_->MATCH0 = val;      // load the match value
+    sct_->CTRL &= ~(1 << 2); // start SCTn
 }
 
 /**
  * Check if timer is still running
- * @return Timer interrupt status (false or true)
+ * @return Timer completion status (false or true)
  */
 bool Timer::isExpired() const
 {
-    return !(timer_->STAT & 0x02);
+    return (sct_->EVFLAG & 0x01);
 }
 
 /**
@@ -53,10 +53,7 @@ bool Timer::isExpired() const
  */
 uint32_t Timer::value() const
 {
-    //return ((timer_->INTVAL & 0xFFFFFF) - timer_->TIMER) / tickDiv;
-    uint32_t v = ((timer_->INTVAL & 0xFFFFFF) - timer_->TIMER) / tickDiv;
-    uint32_t v2 = v;
-    return v2;
+    return (sct_->COUNT / tickDiv);
 }
 
 /**

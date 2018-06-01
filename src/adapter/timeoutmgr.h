@@ -30,6 +30,7 @@ private:
     TimeoutManager();
     uint32_t at1Timeout() const;
     uint32_t at2Timeout() const;
+    bool multiplier() const;
     int mode_;
     uint32_t timeout_;
     uint32_t threshold_;

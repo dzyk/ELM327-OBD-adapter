@@ -12,6 +12,7 @@
 #include <romapi_15xx.h>
 #include "CanDriver.h"
 #include "GpioDrv.h"
+#include "Timer.h"
 #include <canmsgbuffer.h>
 #include <led.h>
 
@@ -30,6 +31,7 @@ const int FIFO_NUM = 10;
 CAN_HANDLE_T CanDriver::handle_;
 static volatile uint32_t msgBitMask;
 static volatile bool txInProgress;
+static volatile bool txError;
 
 // C-CAN callbacks
 extern "C" {
@@ -57,6 +59,8 @@ extern "C" {
 
     void CAN_error(uint32_t errorInfo)
     {
+        txInProgress = false;
+        txError = true;
     }
 }
 
@@ -188,21 +192,28 @@ void CanDriver::setSpeed(int speed)
 
 /**
  * Transmits a sequence of bytes to the ECU over CAN bus
- * @parameter   buff   CanMsgBuffer instance
+ * @parameter buff CanMsgBuffer instance
  * @return the send operation completion status
  */
 bool CanDriver::send(const CanMsgBuffer* buff)
 {
+    const int SEND_TIMEOUT = 300; // How long to wait before giving up, ms
     static CAN_MSG_OBJ msg;
 
     //Send CAN frame using msgobj=0
     CanMsg2Native(buff, &msg, 0);
+    
+    Timer* timer = Timer::instance(1);
+    timer->start(SEND_TIMEOUT);
 
     txInProgress = true;
+    txError = false;
     LPC_CAND_API->hwCAN_MsgTransmit(handle_, &msg);
-    while (txInProgress)
-        ;
-    return true;
+    while (txInProgress) {
+        if (timer->isExpired())
+            return false;
+    }
+    return !txError;
 }
 
 /**

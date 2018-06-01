@@ -320,7 +320,7 @@ void J1939Adapter::formatReplyWithHeader(const CanMsgBuffer* msg, util::string& 
 uint32_t J1939Adapter::getTimeout() const
 {
     uint32_t p2Timeout = AdapterConfig::instance()->getIntProperty(PAR_TIMEOUT); 
-    bool timeoutMult = AdapterConfig::instance()->getBoolProperty(PAR_CAN_TIMEOUT_MULT);
+    bool timeoutMult = AdapterConfig::instance()->getBoolProperty(PAR_J1939_TIMEOUT_MLT);
     uint32_t timeoutMultVal = timeoutMult ? 5 : 1;
     return p2Timeout ? (p2Timeout * 4 * timeoutMultVal) : J1939_MAX_TIMEOUT; 
 }

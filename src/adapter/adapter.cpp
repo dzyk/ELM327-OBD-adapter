@@ -37,6 +37,10 @@ static void SetAllRegisters()
     LPC_SYSCON->SYSAHBCLKCTRL1 |= (1 << 0);
     LPC_SYSCON->PRESETCTRL1 &= ~(1 << 0);
     
+    // Enable STC2/SCT3 timers
+    LPC_SYSCON->SYSAHBCLKCTRL1 |= (3 << 4);
+    LPC_SYSCON->PRESETCTRL1 &= ~(3 << 4);
+
     // Enable RIT timer
     LPC_SYSCON->SYSAHBCLKCTRL1 |= (1 << 1);
     LPC_SYSCON->PRESETCTRL1 &= ~(1 << 1);
@@ -103,7 +107,7 @@ static void AdapterRun()
     glblUart->handler(UserUartRcvHandler);
     AdptPowerModeConfigure();
     AdptDispatcherInit();
-
+    
     for(;;) {    
         if (glblUart->ready()) {
             glblUart->ready(false);

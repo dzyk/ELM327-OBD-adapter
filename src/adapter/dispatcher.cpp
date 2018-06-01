@@ -23,7 +23,7 @@ using namespace util;
 // Reply string constants//
 static const char ErrMessage[] { "?" };
 static const char OkMessage [] { "OK" };
-static const char Version   [] { "1.19" };
+static const char Version   [] { "1.21" };
 static const char Interface [] { "ELM327 v2.1" };
 static const char Copyright [] { "Copyright (c) 2009-2018 ObdDiag.Net" };
 static const char Copyright2[] { "This is free software; see the source for copying conditions. There is NO" };
@@ -168,7 +168,7 @@ static void OnCanSetReceiveAddress(const string& cmd, int par)
 {
     ByteArray bytes;
     
-    AdapterConfig* config = AdapterConfig::instance();
+    auto config = AdapterConfig::instance();
     
     if (cmd.length() == 0) {
         config->setBytesProperty(PAR_CAN_FILTER, &bytes);
@@ -199,9 +199,9 @@ static void OnCanSetReceiveAddress(const string& cmd, int par)
  */
 static void OnCanSetFlowControlMode(const string& cmd, int par)
 {
-    AdapterConfig* config = AdapterConfig::instance();
-    const ByteArray* hdr = config->getBytesProperty(PAR_CAN_FLOW_CTRL_HDR);
-    const ByteArray* bytes = config->getBytesProperty(PAR_CAN_FLOW_CTRL_DAT);
+    auto config = AdapterConfig::instance();
+    auto hdr = config->getBytesProperty(PAR_CAN_FLOW_CTRL_HDR);
+    auto bytes = config->getBytesProperty(PAR_CAN_FLOW_CTRL_DAT);
 
     switch (stoul(cmd, 0, 16)) {
         case 0:
@@ -465,11 +465,11 @@ static void OnSet4HeaderBytes(const string& cmd, int par)
 }
 
 /**
- * Set CAN timeout multiplier, ATCTM1 or ATCTM5
+ * Set CAN/J1939 timeout multiplier, ATCTM1/ATCTM5 or ATJTM1/5
  * @param[in] cmd Command line
  * @param[in] par The number in dispatch table
  */
-static void OnCanSetTimeoutMult(const string& cmd, int par)
+static void OnSetTimeoutMult(const string& cmd, int par)
 {
     bool val = false;
     if (cmd == "1") {
@@ -482,7 +482,7 @@ static void OnCanSetTimeoutMult(const string& cmd, int par)
         AdptSendReply(ErrMessage);
         return;
     }
-    AdapterConfig::instance()->setBoolProperty(PAR_CAN_TIMEOUT_MULT, val);
+    AdapterConfig::instance()->setBoolProperty(par, val);
     AdptSendReply(OkMessage);
 }
 
@@ -514,7 +514,7 @@ static void OnSetVPWSpeed(const string& cmd, int par)
  */
 static void SetDefault()
 {
-    AdapterConfig* config = AdapterConfig::instance();
+    auto config = AdapterConfig::instance();
     OBDProfile::instance()->setProtocol(PROT_AUTO, true);
     config->clear();
     config->setBoolProperty(PAR_HEADER_SHOW, false);
@@ -526,9 +526,10 @@ static void SetDefault()
     config->setBoolProperty(PAR_CAN_DLC, false);
     config->setBoolProperty(PAR_CAN_FLOW_CONTROL, true);
     config->setBoolProperty(PAR_AUTO_RECEIVE, true);
-    config->setBoolProperty(PAR_CAN_TIMEOUT_MULT, false);
+    config->setBoolProperty(PAR_CAN_TIMEOUT_MLT, false);
     config->setBoolProperty(PAR_CAN_SILENT_MODE, true);
     config->setBoolProperty(PAR_J1939_HEADER, true);
+    config->setBoolProperty(PAR_J1939_TIMEOUT_MLT, false);
     config->setIntProperty(PAR_ISO_INIT_ADDRESS, 0x33);
     config->setIntProperty(PAR_WAKEUP_VAL, (DEFAULT_WAKEUP_TIME / 20));
     config->setIntProperty(PAR_CAN_TSTR_ADDRESS, TESTER_ADDRESS);
@@ -602,7 +603,7 @@ static const DispatchType dispatchTbl[] = {
     { "CS",     PAR_CAN_SHOW_STATUS,   0,  0, OnCanShowStatus        },
     { "CSM0",   PAR_CAN_SILENT_MODE,   0,  0, OnSetValueFalse        },
     { "CSM1",   PAR_CAN_SILENT_MODE,   0,  0, OnSetValueTrue         },
-    { "CTM",    PAR_CAN_TIMEOUT_MULT,  1,  1, OnCanSetTimeoutMult    },
+    { "CTM",    PAR_CAN_TIMEOUT_MLT,   1,  1, OnSetTimeoutMult       },
     { "CV",     PAR_CALIBRATE_VOLT,    4,  4, OnSetOK                },
     { "D",      PAR_SET_DEFAULT,       0,  0, OnSetDefault           },
     { "D0",     PAR_CAN_DLC,           0,  0, OnSetValueFalse        },
@@ -628,7 +629,7 @@ static const DispatchType dispatchTbl[] = {
     { "JHF0",   PAR_J1939_HEADER,      0,  0, OnSetValueFalse        },
     { "JHF1",   PAR_J1939_HEADER,      0,  0, OnSetValueTrue         },
     { "JS",     PAR_J1939_FMT,         0,  0, OnSetValueTrue         },
-    { "JTM",    PAR_CAN_TIMEOUT_MULT,  1,  1, OnCanSetTimeoutMult    },
+    { "JTM",    PAR_J1939_TIMEOUT_MLT, 1,  1, OnSetTimeoutMult       },
     { "KW",     PAR_KW_DISPLAY,        0,  0, OnKwDisplay            },
     { "KW0",    PAR_KW_CHECK,          0,  0, OnSetValueFalse        },
     { "KW1",    PAR_KW_CHECK,          0,  0, OnSetValueTrue         },
